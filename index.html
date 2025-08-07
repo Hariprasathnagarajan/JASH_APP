@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canteen Order System</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .app {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Login Page Styles */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .login-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* Dashboard Layout */
+        .dashboard {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #f8f9fa;
+        }
+
+        .header {
+            background: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 20px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logout-btn {
+            padding: 8px 16px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .content {
+            flex: 1;
+            padding: 20px;
+            padding-bottom: 80px;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 10px 0;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-around;
+            z-index: 1000;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+            min-width: 60px;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 4px;
+        }
+
+        .nav-text {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* Top Navigation for Staff/Admin */
+        .top-nav {
+            background: white;
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            gap: 20px;
+        }
+
+        .top-nav-item {
+            padding: 15px 0;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: border-color 0.3s ease;
+            font-weight: 500;
+        }
+
+        .top-nav-item.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Menu Items */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .menu-item {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease;
+        }
+
+        .menu-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .menu-item-image {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 48px;
+        }
+
+        .menu-item-content {
+            padding: 20px;
+        }
+
+        .menu-item-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .menu-item-description {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .menu-item-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .menu-item-price {
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .quantity-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .quantity-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: background 0.3s ease;
+        }
+
+        .quantity-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .quantity-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .quantity {
+            font-weight: 600;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* Token Display */
+        .token-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .token-count {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .token-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* Cart */
+        .cart-summary {
+            position: fixed;
+            bottom: 80px;
+            left: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cart-info {
+            font-weight: 600;
+        }
+
+        .place-order-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .place-order-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Orders */
+        .order-item {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 15px;
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .order-id {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .order-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-declined {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-completed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .order-items {
+            margin-bottom: 10px;
+        }
+
+        .order-item-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .order-date {
+            color: #666;
+            font-size: 12px;
+        }
+
+        /* Staff/Admin specific */
+        .user-form {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .users-grid {
+            display: grid;
+            gap: 15px;
+        }
+
+        .user-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info-card {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .user-details {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .content {
+                padding: 15px;
+            }
+
+            .menu-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                flex-direction: column;
+            }
+
+            .cart-summary {
+                left: 15px;
+                right: 15px;
+            }
+
+            .login-card {
+                margin: 0 15px;
+                padding: 30px 25px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .user-info {
+                gap: 10px;
+            }
+
+            .bottom-nav .nav-item {
+                padding: 8px;
+            }
+
+            .nav-text {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:8000/api';
+        
+        // Configure axios defaults
+        axios.defaults.baseURL = API_BASE_URL;
+        axios.defaults.withCredentials = true;
+
+        // Get CSRF token
+        const getCSRFToken = () => {
+            const name = 'csrftoken';
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        };
+
+        // Set CSRF token for all requests
+        axios.defaults.headers.common['X-CSRFToken'] = getCSRFToken();
+
+        // Icons Component
+        const Icons = {
+            menu: () => (
+                <svg className="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 16a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
+                </svg>
+            ),
+            orders: () => (
+                <svg className="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                    <path fillRule="evenodd" d="M4 5a2 2 0 012-2v1a1 1 0 001 1h6a1 1 0 001-1V3a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                </svg>
+            ),
+            profile: () => (
+                <svg className="nav-icon" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                </svg>
+            ),
+            food: () => '🍽️'
+        };
+
+        // Login Component
+        const Login = ({ onLogin }) => {
+            const [formData, setFormData] = useState({ username: '', password: '' });
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setError('');
+
+                try {
+                    const response = await axios.post('/login/', formData);
+                    onLogin(response.data.user);
+                } catch (err) {
+                    setError(err.response?.data?.error || 'Login failed');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="login-container">
+                    <div className="login-card">
+                        <div className="login-header">
+                            <h1>🍽️ Canteen Order</h1>
+                            <p>Sign in to your account</p>
+                        </div>
+                        
+                        {error && <div className="error-message">{error}</div>}
+                        
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-group">
+                                <label>Username</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    value={formData.username}
+                                    onChange={(e) => setFormData({...formData, username: e.target.value})}
+                                    required
+                                />
+                            </div>
+                            
+                            <div className="form-group">
+                                <label>Password</label>
+                                <input
+                                    type="password"
+                                    className="form-control"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                    required
+                                />
+                            </div>
+                            
+                            <button 
+                                type="submit" 
+                                className="btn-primary"
+                                disabled={loading}
+                            >
+                                {loading ? 'Signing in...' : 'Sign In'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        // Employee Dashboard Components
+        const EmployeeMenu = ({ user }) => {
+            const [menuItems, setMenuItems] = useState([]);
+            const [cart, setCart] = useState({});
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+            const [success, setSuccess] = useState('');
+
+            useEffect(() => {
+                fetchMenuItems();
+            }, []);
+
+            const fetchMenuItems = async () => {
+                try {
+                    const response = await axios.get('/employee/menu/');
+                    setMenuItems(response.data);
+                } catch (err) {
+                    setError('Failed to load menu');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const updateCart = (itemId, quantity) => {
+                setCart(prev => ({
+                    ...prev,
+                    [itemId]: quantity > 0 ? quantity : undefined
+                }));
+            };
+
+            const getTotalTokens = () => {
+                return Object.entries(cart).reduce((total, [itemId, quantity]) => {
+                    const item = menuItems.find(item => item.id === parseInt(itemId));
+                    return total + (item ? item.price * quantity : 0);
+                }, 0);
+            };
+
+            const placeOrder = async () => {
+                const items = Object.entries(cart)
+                    .filter(([_, quantity]) => quantity > 0)
+                    .map(([itemId, quantity]) => ({
+                        menu_item_id: parseInt(itemId),
+                        quantity
+                    }));
+
+                if (items.length === 0) return;
+
+                try {
+                    await axios.post('/employee/order/', { items });
+                    setCart({});
+                    setSuccess('Order placed successfully!');
+                    setTimeout(() => setSuccess(''), 3000);
+                } catch (err) {
+                    setError(err.response?.data?.error || 'Failed to place order');
+                    setTimeout(() => setError(''), 3000);
+                }
+            };
+
+            if (loading) return <div className="loading">Loading menu...</div>;
+
+            const cartItems = Object.keys(cart).length;
+            const totalTokens = getTotalTokens();
+
+            return (
+                <div>
+                    <div className="token-display">
+                        <div className="token-count">{user.tokens}</div>
+                        <div className="token-label">Available Tokens</div>
+                    </div>
+
+                    {error && <div className="error-message">{error}</div>}
+                    {success && <div className="success-message">{success}</div>}
+
+                    <div className="menu-grid">
+                        {menuItems.map(item => (
+                            <div key={item.id} className="menu-item">
+                                <div className="menu-item-image">
+                                    {Icons.food()}
+                                </div>
+                                <div className="menu-item-content">
+                                    <div className="menu-item-name">{item.name}</div>
+                                    <div className="menu-item-description">{item.description}</div>
+                                    <div className="menu-item-footer">
+                                        <div className="menu-item-price">{item.price} tokens</div>
+                                        <div className="quantity-controls">
+                                            <button
+                                                className="quantity-btn"
+                                                onClick={() => updateCart(item.id, (cart[item.id] || 0) - 1)}
+                                                disabled={!cart[item.id]}
+                                            >
+                                                -
+                                            </button>
+                                            <div className="quantity">{cart[item.id] || 0}</div>
+                                            <button
+                                                className="quantity-btn"
+                                                onClick={() => updateCart(item.id, (cart[item.id] || 0) + 1)}
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {cartItems > 0 && (
+                        <div className="cart-summary">
+                            <div className="cart-info">
+                                {cartItems} items • {totalTokens} tokens
+                            </div>
+                            <button
+                                className="place-order-btn"
+                                onClick={placeOrder}
+                                disabled={totalTokens > user.tokens}
+                            >
+                                Place Order
+                            </button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const EmployeeOrders = () => {
+            const [orders, setOrders] = useState({ today_orders: [], past_orders: [] });
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                fetchOrders();
+            }, []);
+
+            const fetchOrders = async () => {
+                try {
+                    const response = await axios.get('/employee/orders/');
+                    setOrders(response.data);
+                } catch (err) {
+                    console.error('Failed to load orders', err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const formatDate = (dateString) => {
+                return new Date(dateString).toLocaleDateString();
+            };
+
+            const renderOrder = (order) => (
+                <div key={order.id} className="order-item">
+                    <div className="order-header">
+                        <div className="order-id">Order #{order.id}</div>
+                        <div className={`order-status status-${order.status}`}>
+                            {order.status}
+                        </div>
+                    </div>
+                    <div className="order-items">
+                        {order.order_items.map((item, index) => (
+                            <div key={index} className="order-item-row">
+                                <span>{item.menu_item.name} x {item.quantity}</span>
+                                <span>{item.tokens_per_item * item.quantity} tokens</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="order-date">
+                        {formatDate(order.created_at)} • Total: {order.total_tokens} tokens
+                    </div>
+                </div>
+            );
+
+            if (loading) return <div className="loading">Loading orders...</div>;
+
+            return (
+                <div>
+                    {orders.today_orders.length > 0 && (
+                        <div className="card">
+                            <div className="card-title">Today's Orders</div>
+                            {orders.today_orders.map(renderOrder)}
+                        </div>
+                    )}
+
+                    {orders.past_orders.length > 0 && (
+                        <div className="card">
+                            <div className="card-title">Order History</div>
+                            {orders.past_orders.map(renderOrder)}
+                        </div>
+                    )}
+
+                    {orders.today_orders.length === 0 && orders.past_orders.length === 0 && (
+                        <div className="empty-state">
+                            <h3>No orders yet</h3>
+                            <p>Start by ordering from the menu!</p>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const EmployeeProfile = ({ user }) => {
+            return (
+                <div className="card">
+                    <div className="card-title">Profile Information</div>
+                    <div style={{ marginBottom: '15px' }}>
+                        <strong>Name:</strong> {user.first_name} {user.last_name}
+                    </div>
+                    <div style={{ marginBottom: '15px' }}>
+                        <strong>User ID:</strong> {user.user_id}
+                    </div>
+                    <div style={{ marginBottom: '15px' }}>
+                        <strong>Username:</strong> {user.username}
+                    </div>
+                    <div style={{ marginBottom: '15px' }}>
+                        <strong>Email:</strong> {user.email}
+                    </div>
+                    <div className="token-display">
+                        <div className="token-count">{user.tokens}</div>
+                        <div className="token-label">Available Tokens This Month</div>
+                    </div>
+                </div>
+            );
+        };
+
+        const EmployeeDashboard = ({ user, onLogout }) => {
+            const [activeTab, setActiveTab] = useState('menu');
+
+            const renderContent = () => {
+                switch (activeTab) {
+                    case 'menu': return <EmployeeMenu user={user} />;
+                    case 'orders': return <EmployeeOrders />;
+                    case 'profile': return <EmployeeProfile user={user} />;
+                    default: return <EmployeeMenu user={user} />;
+                }
+            };
+
+            return (
+                <div className="dashboard">
+                    <div className="header">
+                        <h1>Welcome, {user.first_name}</h1>
+                        <div className="user-info">
+                            <span>{user.tokens} tokens</span>
+                            <button onClick={onLogout} className="logout-btn">
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="content">
+                        {renderContent()}
+                    </div>
+
+                    <div className="bottom-nav">
+                        <div
+                            className={`nav-item ${activeTab === 'menu' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('menu')}
+                        >
+                            {Icons.menu()}
+                            <div className="nav-text">Menu</div>
+                        </div>
+                        <div
+                            className={`nav-item ${activeTab === 'orders' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('orders')}
+                        >
+                            {Icons.orders()}
+                            <div className="nav-text">Orders</div>
+                        </div>
+                        <div
+                            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('profile')}
+                        >
+                            {Icons.profile()}
+                            <div className="nav-text">Profile</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Staff Dashboard Components
+        const StaffOrders = () => {
+            const [orders, setOrders] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [search, setSearch] = useState('');
+
+            useEffect(() => {
+                fetchOrders();
+            }, [search]);
+
+            const fetchOrders = async () => {
+                try {
+                    const params = search ? { search } : {};
+                    const response = await axios.get('/staff/orders/', { params });
+                    setOrders(response.data.results || response.data);
+                } catch (err) {
+                    console.error('Failed to load orders', err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const updateOrderStatus = async (orderId, status) => {
+                try {
+                    await axios.patch(`/staff/orders/${orderId}/update_status/`, { status });
+                    fetchOrders();
+                } catch (err) {
+                    console.error('Failed to update order', err);
+                }
+            };
+
+            if (loading) return <div className="loading">Loading orders...</div>;
+
+            return (
+                <div>
+                    <input
+                        type="text"
+                        className="search-box"
+                        placeholder="Search by username, user ID, or order ID..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+
+                    {orders.length === 0 ? (
+                        <div className="empty-state">
+                            <h3>No orders found</h3>
+                            <p>No orders match your search criteria</p>
+                        </div>
+                    ) : (
+                        orders.map(order => (
+                            <div key={order.id} className="order-item">
+                                <div className="order-header">
+                                    <div>
+                                        <div className="order-id">Order #{order.id}</div>
+                                        <div style={{ fontSize: '14px', color: '#666' }}>
+                                            {order.user_details.first_name} {order.user_details.last_name} 
+                                            ({order.user_details.username})
+                                        </div>
+                                    </div>
+                                    <div className={`order-status status-${order.status}`}>
+                                        {order.status}
+                                    </div>
+                                </div>
+                                
+                                <div className="order-items">
+                                    {order.order_items.map((item, index) => (
+                                        <div key={index} className="order-item-row">
+                                            <span>{item.menu_item.name} x {item.quantity}</span>
+                                            <span>{item.tokens_per_item * item.quantity} tokens</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
+                                    <div className="order-date">
+                                        {new Date(order.created_at).toLocaleString()} • Total: {order.total_tokens} tokens
+                                    </div>
+                                    
+                                    {order.status === 'pending' && (
+                                        <div className="action-buttons">
+                                            <button
+                                                className="btn-success"
+                                                onClick={() => updateOrderStatus(order.id, 'approved')}
+                                            >
+                                                Approve
+                                            </button>
+                                            <button
+                                                className="btn-danger"
+                                                onClick={() => updateOrderStatus(order.id, 'declined')}
+                                            >
+                                                Decline
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            );
+        };
+
+        const StaffMenu = () => {
+            const [menuItems, setMenuItems] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [showForm, setShowForm] = useState(false);
+            const [editItem, setEditItem] = useState(null);
+            const [formData, setFormData] = useState({
+                name: '',
+                description: '',
+                price: '',
+                is_available: true
+            });
+
+            useEffect(() => {
+                fetchMenuItems();
+            }, []);
+
+            const fetchMenuItems = async () => {
+                try {
+                    const response = await axios.get('/staff/menu/');
+                    setMenuItems(response.data.results || response.data);
+                } catch (err) {
+                    console.error('Failed to load menu items', err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                try {
+                    if (editItem) {
+                        await axios.patch(`/staff/menu/${editItem.id}/`, formData);
+                    } else {
+                        await axios.post('/staff/menu/', formData);
+                    }
+                    resetForm();
+                    fetchMenuItems();
+                } catch (err) {
+                    console.error('Failed to save menu item', err);
+                }
+            };
+
+            const deleteItem = async (id) => {
+                if (window.confirm('Are you sure you want to delete this item?')) {
+                    try {
+                        await axios.delete(`/staff/menu/${id}/`);
+                        fetchMenuItems();
+                    } catch (err) {
+                        console.error('Failed to delete item', err);
+                    }
+                }
+            };
+
+            const resetForm = () => {
+                setFormData({ name: '', description: '', price: '', is_available: true });
+                setEditItem(null);
+                setShowForm(false);
+            };
+
+            const startEdit = (item) => {
+                setEditItem(item);
+                setFormData({
+                    name: item.name,
+                    description: item.description,
+                    price: item.price.toString(),
+                    is_available: item.is_available
+                });
+                setShowForm(true);
+            };
+
+            if (loading) return <div className="loading">Loading menu...</div>;
+
+            return (
+                <div>
+                    <div style={{ marginBottom: '20px' }}>
+                        <button
+                            className="btn-success"
+                            onClick={() => setShowForm(true)}
+                        >
+                            Add New Item
+                        </button>
+                    </div>
+
+                    {showForm && (
+                        <div className="user-form">
+                            <h3>{editItem ? 'Edit Menu Item' : 'Add New Menu Item'}</h3>
+                            <form onSubmit={handleSubmit}>
+                                <div className="form-group">
+                                    <label>Name</label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Description</label>
+                                    <textarea
+                                        className="form-control"
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                                        rows="3"
+                                        required
+                                    />
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Price (Tokens)</label>
+                                        <input
+                                            type="number"
+                                            className="form-control"
+                                            value={formData.price}
+                                            onChange={(e) => setFormData({...formData, price: e.target.value})}
+                                            required
+                                            min="1"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Available</label>
+                                        <select
+                                            className="form-control"
+                                            value={formData.is_available}
+                                            onChange={(e) => setFormData({...formData, is_available: e.target.value === 'true'})}
+                                        >
+                                            <option value="true">Available</option>
+                                            <option value="false">Not Available</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="action-buttons">
+                                    <button type="submit" className="btn-success">
+                                        {editItem ? 'Update' : 'Add'} Item
+                                    </button>
+                                    <button type="button" className="btn-secondary" onClick={resetForm}>
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
+                    <div className="menu-grid">
+                        {menuItems.map(item => (
+                            <div key={item.id} className="menu-item">
+                                <div className="menu-item-image">
+                                    {Icons.food()}
+                                </div>
+                                <div className="menu-item-content">
+                                    <div className="menu-item-name">{item.name}</div>
+                                    <div className="menu-item-description">{item.description}</div>
+                                    <div className="menu-item-footer">
+                                        <div className="menu-item-price">{item.price} tokens</div>
+                                        <div style={{ fontSize: '12px', color: item.is_available ? '#28a745' : '#dc3545' }}>
+                                            {item.is_available ? 'Available' : 'Not Available'}
+                                        </div>
+                                    </div>
+                                    <div className="action-buttons" style={{ marginTop: '15px' }}>
+                                        <button
+                                            className="btn-secondary"
+                                            onClick={() => startEdit(item)}
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            className="btn-danger"
+                                            onClick={() => deleteItem(item.id)}
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {menuItems.length === 0 && (
+                        <div className="empty-state">
+                            <h3>No menu items</h3>
+                            <p>Add your first menu item to get started!</p>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const StaffDashboard = ({ user, onLogout }) => {
+            const [activeTab, setActiveTab] = useState('orders');
+
+            const renderContent = () => {
+                switch (activeTab) {
+                    case 'orders': return <StaffOrders />;
+                    case 'menu': return <StaffMenu />;
+                    default: return <StaffOrders />;
+                }
+            };
+
+            return (
+                <div className="dashboard">
+                    <div className="header">
+                        <h1>Staff Dashboard</h1>
+                        <div className="user-info">
+                            <span>{user.first_name} {user.last_name}</span>
+                            <button onClick={onLogout} className="logout-btn">
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="top-nav">
+                        <div
+                            className={`top-nav-item ${activeTab === 'orders' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('orders')}
+                        >
+                            Orders Received
+                        </div>
+                        <div
+                            className={`top-nav-item ${activeTab === 'menu' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('menu')}
+                        >
+                            Menu Management
+                        </div>
+                    </div>
+
+                    <div className="content">
+                        {renderContent()}
+                    </div>
+                </div>
+            );
+        };
+
+        // Admin Dashboard Components
+        const AdminUsers = () => {
+            const [users, setUsers] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [showForm, setShowForm] = useState(false);
+            const [formData, setFormData] = useState({
+                username: '',
+                password: '',
+                first_name: '',
+                last_name: '',
+                email: '',
+                role: 'employee'
+            });
+
+            useEffect(() => {
+                fetchUsers();
+            }, []);
+
+            const fetchUsers = async () => {
+                try {
+                    const response = await axios.get('/admin/users/');
+                    setUsers(response.data.results || response.data);
+                } catch (err) {
+                    console.error('Failed to load users', err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                try {
+                    await axios.post('/admin/users/', formData);
+                    setFormData({
+                        username: '',
+                        password: '',
+                        first_name: '',
+                        last_name: '',
+                        email: '',
+                        role: 'employee'
+                    });
+                    setShowForm(false);
+                    fetchUsers();
+                } catch (err) {
+                    console.error('Failed to create user', err);
+                }
+            };
+
+            const deleteUser = async (id) => {
+                if (window.confirm('Are you sure you want to delete this user?')) {
+                    try {
+                        await axios.delete(`/admin/users/${id}/`);
+                        fetchUsers();
+                    } catch (err) {
+                        console.error('Failed to delete user', err);
+                    }
+                }
+            };
+
+            if (loading) return <div className="loading">Loading users...</div>;
+
+            return (
+                <div>
+                    <div style={{ marginBottom: '20px' }}>
+                        <button
+                            className="btn-success"
+                            onClick={() => setShowForm(true)}
+                        >
+                            Add New User
+                        </button>
+                    </div>
+
+                    {showForm && (
+                        <div className="user-form">
+                            <h3>Add New User</h3>
+                            <form onSubmit={handleSubmit}>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>First Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={formData.first_name}
+                                            onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Last Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={formData.last_name}
+                                            onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Username</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={formData.username}
+                                            onChange={(e) => setFormData({...formData, username: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Password</label>
+                                        <input
+                                            type="password"
+                                            className="form-control"
+                                            value={formData.password}
+                                            onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Email</label>
+                                        <input
+                                            type="email"
+                                            className="form-control"
+                                            value={formData.email}
+                                            onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Role</label>
+                                        <select
+                                            className="form-control"
+                                            value={formData.role}
+                                            onChange={(e) => setFormData({...formData, role: e.target.value})}
+                                        >
+                                            <option value="employee">Employee</option>
+                                            <option value="staff">Staff</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="action-buttons">
+                                    <button type="submit" className="btn-success">
+                                        Add User
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn-secondary"
+                                        onClick={() => setShowForm(false)}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
+                    <div className="users-grid">
+                        {users.map(user => (
+                            <div key={user.id} className="user-card">
+                                <div className="user-info-card">
+                                    <div className="user-name">
+                                        {user.first_name} {user.last_name}
+                                    </div>
+                                    <div className="user-details">
+                                        {user.username} • {user.role} • {user.user_id}
+                                        <br />
+                                        Tokens: {user.tokens}
+                                    </div>
+                                </div>
+                                <div className="action-buttons">
+                                    <button
+                                        className="btn-danger"
+                                        onClick={() => deleteUser(user.id)}
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {users.length === 0 && (
+                        <div className="empty-state">
+                            <h3>No users found</h3>
+                            <p>Add your first user to get started!</p>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const AdminTokens = () => {
+            const [tokenCount, setTokenCount] = useState(30);
+            const [loading, setLoading] = useState(false);
+            const [success, setSuccess] = useState('');
+
+            const refreshTokens = async () => {
+                setLoading(true);
+                try {
+                    await axios.post('/admin/tokens/refresh/', { token_count: tokenCount });
+                    setSuccess('Tokens refreshed successfully for all users!');
+                    setTimeout(() => setSuccess(''), 3000);
+                } catch (err) {
+                    console.error('Failed to refresh tokens', err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="card">
+                    <div className="card-title">Monthly Token Management</div>
+                    
+                    {success && <div className="success-message">{success}</div>}
+                    
+                    <p style={{ marginBottom: '20px', color: '#666' }}>
+                        Refresh monthly tokens for all users. This will replace any existing tokens with the new amount.
+                    </p>
+
+                    <div className="form-group">
+                        <label>Tokens per user</label>
+                        <input
+                            type="number"
+                            className="form-control"
+                            value={tokenCount}
+                            onChange={(e) => setTokenCount(parseInt(e.target.value))}
+                            min="1"
+                            max="100"
+                        />
+                    </div>
+
+                    <button
+                        className="btn-primary"
+                        onClick={refreshTokens}
+                        disabled={loading}
+                    >
+                        {loading ? 'Refreshing...' : 'Refresh Monthly Tokens'}
+                    </button>
+                </div>
+            );
+        };
+
+        const AdminDashboard = ({ user, onLogout }) => {
+            const [activeTab, setActiveTab] = useState('users');
+
+            const renderContent = () => {
+                switch (activeTab) {
+                    case 'users': return <AdminUsers />;
+                    case 'tokens': return <AdminTokens />;
+                    default: return <AdminUsers />;
+                }
+            };
+
+            return (
+                <div className="dashboard">
+                    <div className="header">
+                        <h1>Admin Dashboard</h1>
+                        <div className="user-info">
+                            <span>{user.first_name} {user.last_name}</span>
+                            <button onClick={onLogout} className="logout-btn">
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="top-nav">
+                        <div
+                            className={`top-nav-item ${activeTab === 'users' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('users')}
+                        >
+                            User Management
+                        </div>
+                        <div
+                            className={`top-nav-item ${activeTab === 'tokens' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('tokens')}
+                        >
+                            Token Management
+                        </div>
+                    </div>
+
+                    <div className="content">
+                        {renderContent()}
+                    </div>
+                </div>
+            );
+        };
+
+        // Main App Component
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                checkAuth();
+            }, []);
+
+            const checkAuth = async () => {
+                try {
+                    const response = await axios.get('/profile/');
+                    setUser(response.data);
+                } catch (err) {
+                    // User not authenticated
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleLogin = (userData) => {
+                setUser(userData);
+            };
+
+            const handleLogout = async () => {
+                try {
+                    await axios.post('/logout/');
+                    setUser(null);
+                } catch (err) {
+                    console.error('Logout failed', err);
+                }
+            };
+
+            if (loading) {
+                return (
+                    <div className="loading">
+                        <h2>Loading...</h2>
+                    </div>
+                );
+            }
+
+            if (!user) {
+                return <Login onLogin={handleLogin} />;
+            }
+
+            // Route to appropriate dashboard based on user role
+            switch (user.role) {
+                case 'employee':
+                    return <EmployeeDashboard user={user} onLogout={handleLogout} />;
+                case 'staff':
+                    return <StaffDashboard user={user} onLogout={handleLogout} />;
+                case 'admin':
+                    return <AdminDashboard user={user} onLogout={handleLogout} />;
+                default:
+                    return <div className="error-message">Invalid user role</div>;
+            }
+        };
+
+        // Render the app
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
