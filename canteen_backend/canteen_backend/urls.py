@@ -15,6 +15,6 @@ router.register(r'profile', ProfileViewSet, basename='profile')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/', AuthViewSet.as_view({'post': 'login'}), name='auth-login'),
+    path('api/login/', AuthViewSet.as_view({'post': 'login'}), name='auth-login'),
     path('api/', include(router.urls)),
 ]
