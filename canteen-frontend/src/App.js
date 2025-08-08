@@ -1,92 +1,124 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, CssBaseline } from '@mui/material';
-import theme from './theme';
-import { AuthProvider } from './contexts/AuthContext';
-import ProtectedRoute from './components/Shared/ProtectedRoute';
-import Login from './pages/Auth/Login';
-import MenuPage from './pages/Employee/MenuPage';
-import OrdersPage from './pages/Employee/OrdersPage';
-import ProfilePage from './pages/Employee/ProfilePage';
-import OrderManagement from './pages/Staff/OrderManagement';
-import MenuManagement from './pages/Staff/MenuManaggement';
-import Dashboard from './pages/Admin/Dashboard';
-import UserManagement from './pages/Admin/UserManagement';
-import TokenManagement from './pages/Admin/TokenManagement';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import PrivateRoute from './components/PrivateRoute';
+import Navbar from './components/Navbar';
+import Login from './pages/Login';
 import NotFound from './pages/NotFound';
+import './styles/global.css';
 
-function App() {
+// Employee Pages
+import EmployeeMenu from './pages/employee/Menu';
+import EmployeeOrders from './pages/employee/OrderHistory';
+import EmployeeProfile from './pages/employee/Profile';
+
+// Staff Pages
+import StaffManageMenu from './pages/staff/ManageMenu';
+import StaffManageOrders from './pages/staff/ManageOrders';
+
+// Admin Pages
+import AdminManageUsers from './pages/admin/ManageUsers';
+import AdminManageTokens from './pages/admin/ManageTokens';
+
+const App = () => {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <AuthProvider>
       <Router>
-        <AuthProvider>
+        <div className="app-container">
           <Routes>
             <Route path="/login" element={<Login />} />
             
             {/* Employee Routes */}
-            <Route path="/employee/menu" element={
-              <ProtectedRoute roles={['employee']}>
-                <MenuPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/employee/orders" element={
-              <ProtectedRoute roles={['employee']}>
-                <OrdersPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/employee/profile" element={
-              <ProtectedRoute roles={['employee']}>
-                <ProfilePage />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/employee/menu"
+              element={
+                <PrivateRoute allowedRoles={['employee']}>
+                  <>
+                    <Navbar />
+                    <EmployeeMenu />
+                  </>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/employee/orders"
+              element={
+                <PrivateRoute allowedRoles={['employee']}>
+                  <>
+                    <Navbar />
+                    <EmployeeOrders />
+                  </>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/employee/profile"
+              element={
+                <PrivateRoute allowedRoles={['employee']}>
+                  <>
+                    <Navbar />
+                    <EmployeeProfile />
+                  </>
+                </PrivateRoute>
+              }
+            />
             
             {/* Staff Routes */}
-            <Route path="/staff/orders" element={
-              <ProtectedRoute roles={['staff']}>
-                <OrderManagement />
-              </ProtectedRoute>
-            } />
-            <Route path="/staff/menu" element={
-              <ProtectedRoute roles={['staff']}>
-                <MenuManagement />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/staff/menu"
+              element={
+                <PrivateRoute allowedRoles={['staff', 'admin']}>
+                  <>
+                    <Navbar />
+                    <StaffManageMenu />
+                  </>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/staff/orders"
+              element={
+                <PrivateRoute allowedRoles={['staff', 'admin']}>
+                  <>
+                    <Navbar />
+                    <StaffManageOrders />
+                  </>
+                </PrivateRoute>
+              }
+            />
             
             {/* Admin Routes */}
-            <Route path="/admin/dashboard" element={
-              <ProtectedRoute roles={['admin']}>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/users" element={
-              <ProtectedRoute roles={['admin']}>
-                <UserManagement />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/tokens" element={
-              <ProtectedRoute roles={['admin']}>
-                <TokenManagement />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/admin/users"
+              element={
+                <PrivateRoute allowedRoles={['admin']}>
+                  <>
+                    <Navbar />
+                    <AdminManageUsers />
+                  </>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/admin/tokens"
+              element={
+                <PrivateRoute allowedRoles={['admin']}>
+                  <>
+                    <Navbar />
+                    <AdminManageTokens />
+                  </>
+                </PrivateRoute>
+              }
+            />
             
-            {/* Default redirect based on role */}
-            <Route path="/" element={
-              <ProtectedRoute>
-                {({ user }) => {
-                  if (user.role === 'admin') return <Dashboard />;
-                  if (user.role === 'staff') return <OrderManagement />;
-                  return <MenuPage />;
-                }}
-              </ProtectedRoute>
-            } />
-            
+            {/* Default Route */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </AuthProvider>
+        </div>
       </Router>
-    </ThemeProvider>
+    </AuthProvider>
   );
-}
+};
 
 export default App;

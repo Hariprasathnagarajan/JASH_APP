@@ -1,0 +1,41 @@
+food-order-frontend/
+├── public/
+│   ├── index.html
+│   └── ...
+├── src/
+│   ├── api/
+│   │   ├── auth.js
+│   │   ├── menu.js
+│   │   ├── orders.js
+│   │   └── users.js
+│   ├── components/
+│   │   ├── AuthRoute.js
+│   │   ├── LoadingSpinner.js
+│   │   ├── Navbar.js
+│   │   └── PrivateRoute.js
+│   ├── context/
+│   │   └── AuthContext.js
+│   ├── pages/
+│   │   ├── admin/
+│   │   │   ├── ManageTokens.js
+│   │   │   └── ManageUsers.js
+│   │   ├── employee/
+│   │   │   ├── Menu.js
+│   │   │   ├── OrderHistory.js
+│   │   │   ├── PlaceOrder.js
+│   │   │   └── Profile.js
+│   │   ├── staff/
+│   │   │   ├── ManageMenu.js
+│   │   │   └── ManageOrders.js
+│   │   ├── Login.js
+│   │   └── NotFound.js
+│   ├── App.js
+│   ├── index.js
+│   └── styles/
+│       ├── admin.css
+│       ├── employee.css
+│       ├── global.css
+│       ├── staff.css
+│       └── auth.css
+├── package.json
+└── README.md

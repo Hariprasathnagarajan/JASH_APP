@@ -1,24 +1,33 @@
 import axios from 'axios';
 
+const API_URL = 'http://localhost:8000/api';
 
-const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
-});
-
-export const setAuthToken = (token) => {
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common['Authorization'];
+export const login = async (username, password) => {
+  try {
+    const response = await axios.post(`${API_URL}/login/`, {
+      username,
+      password
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response.data;
   }
 };
 
-export const login = (username, password) => {
-  return api.post('/auth/login/', { username, password });
+export const logout = async () => {
+  try {
+    const response = await axios.post(`${API_URL}/logout/`);
+    return response.data;
+  } catch (error) {
+    throw error.response.data;
+  }
 };
 
-export const getProfile = () => {
-  return api.get('/profile/');
+export const getProfile = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/profile/`);
+    return response.data;
+  } catch (error) {
+    throw error.response.data;
+  }
 };
-
-export default api;
