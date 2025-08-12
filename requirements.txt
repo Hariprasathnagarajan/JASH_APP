@@ -1,0 +1,5 @@
+Django
+djangorestframework
+django-cors-headers
+python-decouple
+Pillow

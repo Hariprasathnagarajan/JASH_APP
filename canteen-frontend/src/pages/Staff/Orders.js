@@ -1,0 +1,209 @@
+import React, { useState, useEffect } from 'react';
+import { Search, Clock, CheckCircle, XCircle, Package, Filter } from 'lucide-react';
+import { staffAPI } from '../../utils/api';
+import TopNavigation from '../../components/Layout/TopNavigation';
+
+const StaffOrders = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [updating, setUpdating] = useState({});
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const response = await staffAPI.getOrders(searchTerm);
+      setOrders(response.data.results || response.data);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {    
+      setLoading(false);
+    }
+  };
+
+  const updateOrderStatus = async (orderId, status) => {
+    setUpdating({ ...updating, [orderId]: true });
+    try {
+      await staffAPI.updateOrderStatus(orderId, status);
+      setOrders(orders.map(order => 
+        order.id === orderId ? { ...order, status } : order
+      ));
+    } catch (error) {
+      console.error('Error updating order:', error);
+    } finally {
+      setUpdating({ ...updating, [orderId]: false });
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="w-5 h-5 text-yellow-500" />;
+      case 'approved':
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case 'declined':
+        return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'completed':
+        return <Package className="w-5 h-5 text-blue-500" />;
+      default:
+        return <Clock className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'approved':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'declined':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'completed':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString();
+  };
+
+  const filteredOrders = orders.filter(order => {
+    if (statusFilter === 'all') return true;
+    return order.status === statusFilter;
+  });
+
+  const OrderCard = ({ order }) => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex items-center space-x-2">
+            {getStatusIcon(order.status)}
+            <span className="font-semibold text-gray-900">Order #{order.id}</span>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(order.status)}`}>
+            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+          </span>
+        </div>
+
+        <div className="mb-3">
+          <p className="text-sm text-gray-600">Customer: {order.user_details?.first_name} {order.user_details?.last_name}</p>
+          <p className="text-sm text-gray-600">User ID: {order.user_details?.user_id}</p>
+        </div>
+
+        <div className="space-y-2 mb-4">
+          {order.order_items?.map((item, index) => (
+            <div key={index} className="flex justify-between items-center text-sm">
+              <span className="text-gray-700">
+                {item.menu_item.name} x {item.quantity}
+              </span>
+              <span className="text-gray-500">
+                {item.tokens_per_item * item.quantity} tokens
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-between items-center pt-3 border-t border-gray-200 mb-4">
+          <span className="text-sm text-gray-500">
+            {formatDate(order.created_at)}
+          </span>
+          <span className="font-semibold text-primary">
+            Total: {order.total_tokens} tokens
+          </span>
+        </div>
+
+        {order.status === 'pending' && (
+          <div className="flex space-x-2">
+            <button
+              onClick={() => updateOrderStatus(order.id, 'approved')}
+              disabled={updating[order.id]}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {updating[order.id] ? 'Updating...' : 'Approve'}
+            </button>
+            <button
+              onClick={() => updateOrderStatus(order.id, 'declined')}
+              disabled={updating[order.id]}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {updating[order.id] ? 'Updating...' : 'Decline'}
+            </button>
+          </div>
+        )}
+
+        {order.status === 'approved' && (
+          <button
+            onClick={() => updateOrderStatus(order.id, 'completed')}
+            disabled={updating[order.id]}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {updating[order.id] ? 'Updating...' : 'Mark as Completed'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <TopNavigation />
+      
+      <div className="p-4 space-y-4">
+        {/* Search and Filter */}
+        <div className="bg-white rounded-xl shadow-sm p-4">
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Search by username, user ID, or order ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Filter className="w-5 h-5 text-gray-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+              <option value="all">All Orders</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="completed">Completed</option>
+              <option value="declined">Declined</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Orders List */}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        ) : filteredOrders.length > 0 ? (
+          <div className="space-y-4">
+            {filteredOrders.map((order) => (
+              <OrderCard key={order.id} order={order} />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl p-8 text-center">
+            <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500">No orders found</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default StaffOrders;

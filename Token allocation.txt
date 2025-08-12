@@ -1,0 +1,16 @@
+
+day shift ====> 50
+beverage ==> 15 * 2 = 30
+snacks ==> 10 * 2  20 
+
+
+mid shift ====> 75
+beverage ==> 15
+snacks ==> 10
+food ==> 50
+
+
+night shift ====> 100
+food ==> 50
+beverage ==> 15 * 2 = 30
+snacks ==> 10 * 2  20 
