@@ -14,7 +14,7 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
-    list_display = ['name', 'price', 'is_available', 'created_at']
+    list_display = ['name', 'price','description', 'is_available', 'created_at']
     list_filter = ['is_available', 'created_at']
     search_fields = ['name', 'description']
 

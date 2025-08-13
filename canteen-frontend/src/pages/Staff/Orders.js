@@ -12,18 +12,18 @@ const StaffOrders = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
-
+    },[]);
+    
   const fetchOrders = async () => {
-    try {
-      const response = await staffAPI.getOrders(searchTerm);
-      setOrders(response.data.results || response.data);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    } finally {    
-      setLoading(false);
-    }
-  };
+        try {
+          const response = await staffAPI.getOrders(searchTerm);
+          setOrders(response.data.results || response.data);
+        } catch (error) {
+          console.error('Error fetching orders:', error);
+        } finally {    
+          setLoading(false);
+        }
+      };
 
   const updateOrderStatus = async (orderId, status) => {
     setUpdating({ ...updating, [orderId]: true });
@@ -47,8 +47,6 @@ const StaffOrders = () => {
         return <CheckCircle className="w-5 h-5 text-green-500" />;
       case 'declined':
         return <XCircle className="w-5 h-5 text-red-500" />;
-      case 'completed':
-        return <Package className="w-5 h-5 text-blue-500" />;
       default:
         return <Clock className="w-5 h-5 text-gray-500" />;
     }
@@ -79,9 +77,9 @@ const StaffOrders = () => {
   });
 
   const OrderCard = ({ order }) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-xl">
       <div className="p-4">
-        <div className="flex justify-between items-start mb-3">
+        <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-2">
             {getStatusIcon(order.status)}
             <span className="font-semibold text-gray-900">Order #{order.id}</span>
@@ -96,9 +94,9 @@ const StaffOrders = () => {
           <p className="text-sm text-gray-600">User ID: {order.user_details?.user_id}</p>
         </div>
 
-        <div className="space-y-2 mb-4">
+        <div className="mb-4 space-y-2">
           {order.order_items?.map((item, index) => (
-            <div key={index} className="flex justify-between items-center text-sm">
+            <div key={index} className="flex items-center justify-between text-sm">
               <span className="text-gray-700">
                 {item.menu_item.name} x {item.quantity}
               </span>
@@ -109,7 +107,7 @@ const StaffOrders = () => {
           ))}
         </div>
 
-        <div className="flex justify-between items-center pt-3 border-t border-gray-200 mb-4">
+        <div className="flex items-center justify-between pt-3 mb-4 border-t border-gray-200">
           <span className="text-sm text-gray-500">
             {formatDate(order.created_at)}
           </span>
@@ -121,30 +119,20 @@ const StaffOrders = () => {
         {order.status === 'pending' && (
           <div className="flex space-x-2">
             <button
-              onClick={() => updateOrderStatus(order.id, 'approved')}
+              onClick={() => updateOrderStatus(order.id, 'completed')}
               disabled={updating[order.id]}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2 text-sm font-medium text-white transition-colors bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50"
             >
               {updating[order.id] ? 'Updating...' : 'Approve'}
             </button>
             <button
               onClick={() => updateOrderStatus(order.id, 'declined')}
               disabled={updating[order.id]}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2 text-sm font-medium text-white transition-colors bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
             >
               {updating[order.id] ? 'Updating...' : 'Decline'}
             </button>
           </div>
-        )}
-
-        {order.status === 'approved' && (
-          <button
-            onClick={() => updateOrderStatus(order.id, 'completed')}
-            disabled={updating[order.id]}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {updating[order.id] ? 'Updating...' : 'Mark as Completed'}
-          </button>
         )}
       </div>
     </div>
@@ -156,15 +144,15 @@ const StaffOrders = () => {
       
       <div className="p-4 space-y-4">
         {/* Search and Filter */}
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="p-4 bg-white shadow-sm rounded-xl">
           <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute w-5 h-5 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
             <input
               type="text"
               placeholder="Search by username, user ID, or order ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
           
@@ -187,7 +175,7 @@ const StaffOrders = () => {
         {/* Orders List */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <div className="w-12 h-12 border-b-2 rounded-full animate-spin border-primary"></div>
           </div>
         ) : filteredOrders.length > 0 ? (
           <div className="space-y-4">
@@ -196,8 +184,8 @@ const StaffOrders = () => {
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-xl p-8 text-center">
-            <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <div className="p-8 text-center bg-white rounded-xl">
+            <Package className="w-12 h-12 mx-auto mb-3 text-gray-400" />
             <p className="text-gray-500">No orders found</p>
           </div>
         )}

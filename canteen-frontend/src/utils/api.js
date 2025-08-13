@@ -66,14 +66,14 @@ export const authAPI = {
 
 // Employee API
 export const employeeAPI = {
-  getMenu: () => api.get('/guest/menu/'),
+  getMenu: () => api.get('/employee/menu/'),
   placeOrder: (orderData) => api.post('/employee/order/', orderData),
   getOrders: () => api.get('/employee/orders/'),
 };
 
 // Guest API
 export const guestAPI = {
-  getMenu: () => api.get('/employee/menu/'),
+  getMenu: () => api.get('/guest/menu/'),
   placeOrder: (orderData) => api.post('/guest/order/', orderData),
   getOrders: () => api.get('/guest/orders/'),
 };

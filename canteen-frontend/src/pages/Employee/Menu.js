@@ -14,7 +14,7 @@ const EmployeeMenu = () => {
 
   useEffect(() => {
     fetchMenu();
-  }, []);
+  },[]);
 
   const fetchMenu = async () => {
     try {
@@ -100,18 +100,18 @@ const EmployeeMenu = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="w-12 h-12 border-b-2 rounded-full animate-spin border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen pb-20 bg-gray-50">
       <div className="bg-white shadow-sm">
         <div className="px-4 py-6">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900">Today's Menu</h1>
-            <div className="mt-2 inline-flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+            <div className="inline-flex items-center px-3 py-1 mt-2 text-sm font-medium text-green-800 bg-green-100 rounded-full">
               <ShoppingCart size={16} className="mr-1" />
               {user?.tokens || 0} tokens available
             </div>
@@ -132,38 +132,38 @@ const EmployeeMenu = () => {
       <div className="p-4">
         <div className="grid gap-4">
           {menuItems.map((item) => (
-            <div key={item.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div key={item.id} className="overflow-hidden bg-white shadow-sm rounded-xl">
               {item.image && (
                 <img 
                   src={item.image} 
                   alt={item.name}
-                  className="w-full h-32 object-cover"
+                  className="object-cover w-full h-32"
                 />
               )}
               <div className="p-4">
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex items-start justify-between mb-2">
                   <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
-                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-lg text-sm font-medium">
+                  <span className="px-2 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded-lg">
                     {item.price} tokens
                   </span>
                 </div>
-                <p className="text-gray-600 text-sm mb-4">{item.description}</p>
+                <p className="mb-4 text-sm text-gray-600">{item.description}</p>
                 
-                <div className="flex justify-between items-center">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <button
                       onClick={() => removeFromCart(item.id)}
                       disabled={getCartItemQuantity(item.id) === 0}
-                      className="w-8 h-8 rounded-full bg-red-100 text-red-600 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      className="flex items-center justify-center w-8 h-8 text-red-600 bg-red-100 rounded-full hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Minus size={16} />
                     </button>
-                    <span className="w-8 text-center font-medium">
+                    <span className="w-8 font-medium text-center">
                       {getCartItemQuantity(item.id)}
                     </span>
                     <button
                       onClick={() => addToCart(item)}
-                      className="w-8 h-8 rounded-full bg-green-100 text-green-600 hover:bg-green-200 flex items-center justify-center"
+                      className="flex items-center justify-center w-8 h-8 text-green-600 bg-green-100 rounded-full hover:bg-green-200"
                     >
                       <Plus size={16} />
                     </button>
@@ -181,20 +181,20 @@ const EmployeeMenu = () => {
         </div>
 
         {cart.length > 0 && (
-          <div className="fixed bottom-20 left-4 right-4 z-40">
-            <div className="bg-white rounded-xl shadow-lg border p-4">
-              <div className="flex justify-between items-center mb-3">
+          <div className="fixed z-40 bottom-20 left-4 right-4">
+            <div className="p-4 bg-white border shadow-lg rounded-xl">
+              <div className="flex items-center justify-between mb-3">
                 <span className="font-semibold text-gray-900">Cart Total:</span>
                 <span className="text-lg font-bold text-primary">{getTotalTokens()} tokens</span>
               </div>
               <button
                 onClick={placeOrder}
                 disabled={placing || getTotalTokens() > (user?.tokens || 0)}
-                className="w-full bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 font-semibold text-white transition-colors rounded-lg bg-primary hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {placing ? (
                   <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    <div className="w-5 h-5 mr-2 border-b-2 border-white rounded-full animate-spin"></div>
                     Placing Order...
                   </div>
                 ) : (
@@ -202,7 +202,7 @@ const EmployeeMenu = () => {
                 )}
               </button>
               {getTotalTokens() > (user?.tokens || 0) && (
-                <p className="text-red-600 text-sm mt-2 text-center">
+                <p className="mt-2 text-sm text-center text-red-600">
                   Insufficient tokens available
                 </p>
               )}

@@ -30,6 +30,7 @@ def login_view(request):
     serializer.is_valid(raise_exception=True)
     user = serializer.validated_data['user']
     login(request, user)
+# Adding Token for header
     user_serializer = CustomUserSerializer(user)
     return Response({'message': 'Login successful', 'user': user_serializer.data})
 
