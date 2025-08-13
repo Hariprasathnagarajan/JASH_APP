@@ -23,11 +23,10 @@ const UserForm = ({ formData, setFormData, handleSubmit, resetForm, editingUser 
 
         <div>
           <label className="block mb-1 text-sm font-medium text-gray-700">
-            User ID {editingUser && <span className="text-gray-500">(leave blank to keep current)</span>}
+            User ID
           </label>
           <input
             type="text"
-            required={!editingUser}
             value={formData.user_id}
             onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -66,10 +65,24 @@ const UserForm = ({ formData, setFormData, handleSubmit, resetForm, editingUser 
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
+      <div>
+        <label className="block mb-1 text-sm font-medium text-gray-700">Work Shift</label>
+        <select
+          defaultValue="day"
+          value={formData.work_shift}
+          onChange={(e) => setFormData({ ...formData, work_shift: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+        >
+          <option value="day">Day</option>
+          <option value="mid">Mid</option>
+          <option value="night">Night</option>
+        </select>
+      </div>
 
       <div>
         <label className="block mb-1 text-sm font-medium text-gray-700">Role</label>
         <select
+          defaultValue="employee"
           value={formData.role}
           onChange={(e) => setFormData({ ...formData, role: e.target.value })}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -113,7 +126,8 @@ const AdminUsers = () => {
     first_name: '',
     last_name: '',
     email: '',
-    role: ''
+    role: 'employee',
+    work_shift: 'day'
   });
 
   useEffect(() => {
@@ -169,7 +183,8 @@ const handleSubmit = async (e) => {
       first_name: user.first_name,
       last_name: user.last_name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      work_shift: user.work_shift,
     });
     setShowAddForm(false);
   };
@@ -192,7 +207,8 @@ const handleSubmit = async (e) => {
       first_name: '',
       last_name: '',
       email: '',
-      role: 'employee'
+      role: 'employee',
+      work_shift: 'day'
     });
     setEditingUser(null);
     setShowAddForm(false);
@@ -203,7 +219,7 @@ const handleSubmit = async (e) => {
       case 'admin': return 'bg-purple-100 text-purple-800';
       case 'staff': return 'bg-blue-100 text-blue-800';
       case 'employee': return 'bg-green-100 text-green-800';
-      case 'guest': return 'bg-green-100 text-green-800';
+      case 'guest': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -218,55 +234,85 @@ const handleSubmit = async (e) => {
       (user.email && user.email.toLowerCase().includes(term))
     );
   });
+  const [activeTab, setActiveTab] = useState('all');
+
+  const getFilteredByRole = (users, role) => {
+    if (role === 'all') return users;
+    return users.filter((user) => user.role === role);
+  };
+
+  const displayedUsers = getFilteredByRole(filteredUsers, activeTab);
+
+
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <TopNavigation />
-
-      <div className="p-4">
-        <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-          <div className="flex flex-1 gap-2 md:flex-none">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                placeholder="Search users..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-              <Search className="absolute w-5 h-5 text-gray-400 left-3 top-2.5" />
-            </div>
-            {!showAddForm && !editingUser && (
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="flex items-center px-4 py-2 space-x-2 text-white transition-colors rounded-lg bg-primary hover:bg-blue-700"
-              >
-                <Plus size={16} />
-                <span>Add User</span>
-              </button>
-            )}
+    <div className="flex flex-col h-full">
+       <TopNavigation title="User Management" />
+   <div className="p-4">
+      {/* Header */}
+      <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+        <div className="flex flex-1 gap-2 md:flex-none">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+            <Search className="absolute w-5 h-5 text-gray-400 left-3 top-2.5" />
           </div>
+          {!showAddForm && !editingUser && (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="flex items-center px-4 py-2 space-x-2 text-white transition-colors rounded-lg bg-primary hover:bg-blue-700"
+            >
+              <Plus size={16} />
+              <span>Add User</span>
+            </button>
+          )}
         </div>
+      </div>
 
-        {(showAddForm || editingUser) && (
-          <UserForm
-            formData={formData}
-            setFormData={setFormData}
-            handleSubmit={handleSubmit}
-            resetForm={resetForm}
-            editingUser={editingUser}
-          />
-        )}
+      {/* Form */}
+      {(showAddForm || editingUser) && (
+        <UserForm
+          formData={formData}
+          setFormData={setFormData}
+          handleSubmit={handleSubmit}
+          resetForm={resetForm}
+          editingUser={editingUser}
+        />
+      )}
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-12 h-12 border-b-2 rounded-full animate-spin border-primary"></div>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {filteredUsers.length > 0 ? (
-              filteredUsers.map((user) => (
+      {/* Tabs */}
+      <div className="flex gap-4 mb-6 border-b border-gray-200">
+        {['all', 'staff', 'employee', 'guest'].map((role) => (
+          <button
+            key={role}
+            onClick={() => setActiveTab(role)}
+            className={`relative px-4 py-2 text-sm font-medium capitalize transition-colors ${
+              activeTab === role ? 'text-primary' : 'text-gray-600'
+            }`}
+          >
+            {role}
+            {activeTab === role && (
+              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary transition-all duration-300"></span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* User List */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="w-12 h-12 border-b-2 rounded-full animate-spin border-primary"></div>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {displayedUsers.length > 0 ? (
+            displayedUsers.map((user) => (
               <div
                 key={user.id}
                 className="flex flex-col p-3 space-y-3 transition-shadow bg-white border rounded-lg hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:space-y-0"
@@ -274,20 +320,16 @@ const handleSubmit = async (e) => {
                 {/* Left: Avatar + Name + Username */}
                 <div className="flex items-center space-x-3">
                   <div className="flex items-center justify-center w-8 h-8 bg-gray-200 rounded-full">
-                    <UserCheck className="w-4 h-4 text-gray-600" />
+                    <UserCheck className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`} />
                   </div>
                   <div className="group">
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm w-100 font-medium text-gray-900">
                       {user.first_name} {user.last_name}
                     </p>
                     <p className="text-xs text-gray-500 group-hover:underline" title={`@${user.username}`}>
                       @{user.username}
                     </p>
                   </div>
-                </div>
-
-                {/* Middle: Role + Tokens (if not staff) + Email */}
-                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}
                     title={`Role: ${user.role}`}
@@ -295,7 +337,7 @@ const handleSubmit = async (e) => {
                     {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                   </span>
 
-                    {user.role !== 'staff' && (
+                  {user.role !== 'staff' && (
                     <span
                       className="inline-flex items-center px-3 py-1 space-x-1 font-medium text-green-700 bg-green-100 rounded-full"
                       title={`Tokens: ${user.tokens || 0}`}
@@ -304,7 +346,8 @@ const handleSubmit = async (e) => {
                       <span>{user.tokens || 0}</span>
                     </span>
                   )}
-
+                  </div>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
 
                   <span
                     className="text-gray-500 truncate max-w-[150px]"
@@ -315,7 +358,7 @@ const handleSubmit = async (e) => {
                 </div>
 
                 {/* Right: Actions */}
-                <div className="flex items-center space-x-2">
+                <div className="flex justify-between items-center space-x-2">
                   <button
                     onClick={() => handleEdit(user)}
                     className="text-blue-500 transition-colors hover:text-blue-700"
@@ -332,16 +375,14 @@ const handleSubmit = async (e) => {
                   </button>
                 </div>
               </div>
-
-              ))
-            ) : (
-              <div className="text-center text-gray-500">No users found.</div>
-            )}
-          </div>
-        )}
-      </div>
+            ))
+          ) : (
+            <div className="text-center text-gray-500">No users found.</div>
+          )}
+        </div>
+      )}
+    </div>
     </div>
   );
 };
-
 export default AdminUsers;

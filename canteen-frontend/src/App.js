@@ -13,9 +13,9 @@ import EmployeeOrders from './pages/Employee/Orders';
 import EmployeeProfile from './pages/Employee/Profile';
 
 //Guest Pages
-import GuestMenu from '.pages/Guest/Menu';
+import GuestMenu from './pages/Guest/Menu';
 import GuestOrders from './pages/Guest/Orders';
-import GuestProfile from '/pages/Guest/profile';
+import GuestProfile from './pages/Guest/Profile';
 
 
 // Staff Pages
@@ -65,17 +65,17 @@ const AppRoutes = () => {
        {/* Guest Routes */}
       <Route path="/guest/menu" element={
         <ProtectedRoute allowedRoles={['guest']}>
-          <EmployeeMenu />
+          <GuestMenu />
         </ProtectedRoute>
       } />
       <Route path="/guest/orders" element={
         <ProtectedRoute allowedRoles={['guest']}>
-          <EmployeeOrders />
+          <GuestOrders />
         </ProtectedRoute>
       } />
       <Route path="/guest/profile" element={
         <ProtectedRoute allowedRoles={['guest']}>
-          <EmployeeProfile />
+          <GuestProfile />
         </ProtectedRoute>
       } />
 
@@ -125,7 +125,7 @@ const getDefaultRoute = (role) => {
       return '/staff/orders';
     case 'employee':
       return '/employee/menu';
-      case 'guest':
+    case 'guest':
       return '/guest/menu';
     default:
       return '/login';

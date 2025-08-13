@@ -28,8 +28,8 @@ const MenuForm = ({ editingItem, formData, setFormData, handleSubmit, resetForm 
             Description
           </label>
           <textarea
-            required
             rows={3}
+            required
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -49,15 +49,24 @@ const MenuForm = ({ editingItem, formData, setFormData, handleSubmit, resetForm 
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
-        
         <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="is_available"
-            checked={formData.is_available}
-            onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
-            className="w-4 h-4 border-gray-300 rounded text-primary focus:ring-primary"
-          />
+          <button
+            type="button"
+            role="switch"
+            aria-checked={formData.is_available}
+            onClick={() =>
+              setFormData({ ...formData, is_available: !formData.is_available })
+            }
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              formData.is_available ? 'bg-primary' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                formData.is_available ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
           <label htmlFor="is_available" className="ml-2 text-sm text-gray-700">
             Available for ordering
           </label>
@@ -164,85 +173,13 @@ const StaffMenu = () => {
     setShowAddForm(false);
   };
 
-  // const MenuForm = () => (
-  //   <div className="p-4 mb-4 bg-white shadow-sm rounded-xl">
-  //     <h3 className="mb-4 text-lg font-semibold">
-  //       {editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}
-  //     </h3>
-  //     <form onSubmit={handleSubmit} className="space-y-4">
-  //       <div>
-  //         <label className="block mb-1 text-sm font-medium text-gray-700">
-  //           Item Name
-  //         </label>
-  //         <input
-  //           type="text"
-  //           required
-  //           value={formData.name}
-  //           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-  //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-  //         />
-  //       </div>
-        
-  //       <div>
-  //         <label className="block mb-1 text-sm font-medium text-gray-700">
-  //           Description
-  //         </label>
-  //         <textarea
-  //           required
-  //           rows={3}
-  //           value={formData.description}
-  //           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-  //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-  //         />
-  //       </div>
-        
-  //       <div>
-  //         <label className="block mb-1 text-sm font-medium text-gray-700">
-  //           Price (Tokens)
-  //         </label>
-  //         <input
-  //           type="number"
-  //           required
-  //           min="1"
-  //           value={formData.price}
-  //           onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-  //           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-  //         />
-  //       </div>
-        
-  //       <div className="flex items-center">
-  //         <input
-  //           type="checkbox"
-  //           id="is_available"
-  //           checked={formData.is_available}
-  //           onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
-  //           className="w-4 h-4 border-gray-300 rounded text-primary focus:ring-primary"
-  //         />
-  //         <label htmlFor="is_available" className="ml-2 text-sm text-gray-700">
-  //           Available for ordering
-  //         </label>
-  //       </div>
-        
-  //       <div className="flex space-x-2">
-  //         <button
-  //           type="submit"
-  //           className="flex items-center px-4 py-2 space-x-2 text-white transition-colors rounded-lg bg-primary hover:bg-blue-700"
-  //         >
-  //           <Save size={16} />
-  //           <span>{editingItem ? 'Update' : 'Add'} Item</span>
-  //         </button>
-  //         <button
-  //           type="button"
-  //           onClick={resetForm}
-  //           className="flex items-center px-4 py-2 space-x-2 text-white transition-colors bg-gray-500 rounded-lg hover:bg-gray-600"
-  //         >
-  //           <X size={16} />
-  //           <span>Cancel</span>
-  //         </button>
-  //       </div>
-  //     </form>
-  //   </div>
-  // );
+  const makeAvailable = (id, newStatus) => {
+  setMenuItems((prevItems) =>
+    prevItems.map((item) =>
+      item.id === id ? { ...item, is_available: newStatus } : item
+    )
+  );
+};
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -284,6 +221,21 @@ const StaffMenu = () => {
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
                     <div className="flex items-center space-x-2">
+                      <button
+                      type="button"
+                      role="switch"
+                      aria-checked={item.is_available}
+                      onClick={() => makeAvailable(item.id, !item.is_available)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        item.is_available ? 'bg-primary' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          item.is_available ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         item.is_available 
                           ? 'bg-green-100 text-green-800' 
