@@ -1,15 +1,15 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, MenuItem, Order, OrderItem, MonthlyToken
+from .models import CustomUser, MenuItem, Order, OrderItem, ShiftToken
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-    list_display = ['username', 'email', 'first_name', 'last_name', 'role', 'user_id']
+    list_display = ['username', 'email', 'first_name', 'last_name', 'role', 'work_shift', 'user_id']
     list_filter = ['role', 'is_active', 'is_staff']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'user_id']
     
     fieldsets = UserAdmin.fieldsets + (
-        ('Custom Fields', {'fields': ('role', 'user_id')}),
+        ('Custom Fields', {'fields': ('role', 'work_shift', 'user_id')}),
     )   
 
 @admin.register(MenuItem)
@@ -28,8 +28,8 @@ class OrderAdmin(admin.ModelAdmin):
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ['order', 'menu_item', 'quantity', 'tokens_per_item']
 
-@admin.register(MonthlyToken)
-class MonthlyTokenAdmin(admin.ModelAdmin):
-    list_display = ['user', 'count', 'month', 'year', 'updated_at']
-    list_filter = ['month', 'year']
+@admin.register(ShiftToken)
+class ShiftTokenAdmin(admin.ModelAdmin):
+    list_display = ['user', 'count', 'shift']
+    list_filter = ['shift']
     search_fields = ['user__username']

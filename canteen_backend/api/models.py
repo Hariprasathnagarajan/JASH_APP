@@ -1,16 +1,21 @@
 from django.contrib.auth.models import AbstractUser
-from django.db import models, IntegrityError
+from django.db import models
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password
 
 class CustomUser(AbstractUser):
+    WORK_SHIFT_CHOICES = [
+        ('day', 'Day'),
+        ('mid', 'Mid'),
+        ('night', 'Night'),
+    ]
     ROLE_CHOICES = [
         ('admin', 'Admin'),
         ('staff', 'Staff'),
         ('employee', 'Employee'),
         ('guest', 'Guest'),
     ]
-
+    work_shift = models.CharField(max_length=10, choices=WORK_SHIFT_CHOICES, default='day')
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='employee')
     user_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
 
@@ -24,13 +29,19 @@ class CustomUser(AbstractUser):
     def current_tokens(self):
         now = timezone.now()
         try:
-            token_obj = self.monthly_tokens.get(month=now.month, year=now.year)
+            token_obj = self.shift_tokens.get(month=now.month, year=now.year)
             return token_obj.count
-        except MonthlyToken.DoesNotExist:
+        except ShiftToken.DoesNotExist:
             return 0
 
     def __str__(self):
         return self.username
+    WORK_SHIFT_CHOICES = [
+        ('day', 'Day'),
+        ('mid', 'Mid'),
+        ('night', 'Night'),
+    ]
+    
     ROLE_CHOICES = [
         ('admin', 'Admin'),
         ('staff', 'Staff'),
@@ -38,15 +49,16 @@ class CustomUser(AbstractUser):
         ('guest', 'Guest'),
     ]
 
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='admin')
+    work_shift = models.CharField(max_length=10, choices=WORK_SHIFT_CHOICES, default='day')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='employee')
     user_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
 
     def current_tokens(self):
         now = timezone.now()
         try:
-            token_obj = self.monthly_tokens.get(month=now.month, year=now.year)
+            token_obj = self.shift_tokens.get(month=now.month, year=now.year)
             return token_obj.count
-        except MonthlyToken.DoesNotExist:
+        except ShiftToken.DoesNotExist:
             return 0
 
     def __str__(self):
@@ -64,25 +76,29 @@ class MenuItem(models.Model):
         return self.name
 
 
-class MonthlyToken(models.Model):
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='monthly_tokens')
+class ShiftToken(models.Model):
+    SHIFT_CHOICES = [
+        ('morning', 'Morning'),
+        ('evening', 'Evening'),
+        ('night', 'Night'),
+    ]
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='shift_tokens')
     count = models.PositiveIntegerField(default=0)
-    month = models.PositiveSmallIntegerField()
-    year = models.PositiveSmallIntegerField()
-    updated_at = models.DateTimeField(auto_now=True)
+    shift = models.CharField(max_length=10, choices=SHIFT_CHOICES)
 
     class Meta:
-        unique_together = ['user', 'month', 'year']
-        ordering = ['-year', '-month']
+        unique_together = ['user', 'shift']
+        ordering = ['-id', 'shift']
 
     def __str__(self):
-        return f"{self.user.username} - {self.count} tokens ({self.month}/{self.year})"
+        return f"{self.user.username} - {self.count} tokens ({self.shift} shift)"
 
 
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
-        ('approved', 'Approved'),
+        ('approve', 'Approve'),
         ('declined', 'Declined'),
         ('completed', 'Completed'),
     ]

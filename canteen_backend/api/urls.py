@@ -27,6 +27,6 @@ urlpatterns = [
    
      # Guest endpoints
     path('guest/menu/', views.guest_menu, name='guest_menu'),
-    path('guest/order/', views.guest_order, name='guest_order'),
+    path('guest/order/', views.place_order, name='guest_order'),
     path('guest/orders/', views.guest_orders, name='guest_orders'),
 ]

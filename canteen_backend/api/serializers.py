@@ -1,15 +1,14 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from .models import CustomUser, MenuItem, Order, OrderItem, MonthlyToken
+from .models import CustomUser, MenuItem, Order, OrderItem, ShiftToken
 
 class CustomUserCreateSerializer(serializers.ModelSerializer):
-    # password = serializers.CharField(write_only=True, required=True, min_length=8)
     role = serializers.ChoiceField(choices=CustomUser.ROLE_CHOICES)
 
     class Meta:
         model = CustomUser
-        fields = ['username', 'user_id', 'first_name', 'last_name', 'email', 'role']
+        fields = ['username', 'user_id', 'first_name', 'last_name', 'email', 'role', 'work_shift']
 
     def create(self, validated_data):
         password = validated_data.pop('user_id')
@@ -23,14 +22,14 @@ class CustomUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'user_id', 'tokens']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'work_shift', 'user_id', 'tokens']
 
     def get_tokens(self, obj):
         now = timezone.now()
         try:
-            token_obj = obj.monthly_tokens.get(month=now.month, year=now.year)
+            token_obj = obj.shift_tokens.get()
             return token_obj.count
-        except MonthlyToken.DoesNotExist:
+        except ShiftToken.DoesNotExist:
             return 0
 
 class LoginSerializer(serializers.Serializer):
@@ -107,17 +106,30 @@ class OrderSerializer(serializers.ModelSerializer):
 
         return order
 
-class MonthlyTokenSerializer(serializers.ModelSerializer):
-    user_details = serializers.SerializerMethodField()
+class ShiftTokenSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()  # Displays username
+    shift = serializers.ChoiceField(choices=ShiftToken.SHIFT_CHOICES)
 
     class Meta:
-        model = MonthlyToken
-        fields = ['id', 'user', 'user_details', 'count', 'month', 'year', 'updated_at']
+        model = ShiftToken
+        fields = ['id', 'user', 'count', 'shift']
 
-    def get_user_details(self, obj):
-        return {
-            'username': obj.user.username,
-            'first_name': obj.user.first_name,
-            'last_name': obj.user.last_name,
-            'user_id': obj.user.user_id
-        }
+    def validate_date(self, value):
+        if value > timezone.now().date():
+            raise serializers.ValidationError("Date cannot be in the future.")
+        return value
+
+    def validate(self, data):
+        user = self.context['request'].user if 'request' in self.context else None
+        existing = ShiftToken.objects.filter(
+            user=data['user'],
+            shift=data['shift']
+        )
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise serializers.ValidationError("Token entry for this user, date, and shift already exists.")
+        return data
+
+    def create(self, data):
+        return super().create(data)
