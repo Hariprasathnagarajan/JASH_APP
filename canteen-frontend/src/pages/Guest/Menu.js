@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Minus, ShoppingCart } from 'lucide-react';
 import { guestAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -11,6 +11,7 @@ const GuestMenu = () => {
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState('');
   const { user, updateUser } = useAuth();
+  const menuContainerRef = useRef(null);
 
   useEffect(() => {
     fetchMenu();
@@ -18,6 +19,7 @@ const GuestMenu = () => {
 
   const fetchMenu = async () => {
     try {
+      setLoading(true);
       const response = await guestAPI.getMenu();
       setMenuItems(response.data);
     } catch (error) {
@@ -28,7 +30,10 @@ const GuestMenu = () => {
     }
   };
 
+  // Add to cart with animation
   const addToCart = (item) => {
+    if (!item.is_available) return;
+    
     const existingItem = cart.find(cartItem => cartItem.menu_item_id === item.id);
     if (existingItem) {
       setCart(cart.map(cartItem =>
@@ -37,8 +42,20 @@ const GuestMenu = () => {
           : cartItem
       ));
     } else {
-      setCart([...cart, { menu_item_id: item.id, quantity: 1, item }]);
+      setCart([...cart, { 
+        menu_item_id: item.id, 
+        quantity: 1, 
+        item,
+        price: item.price 
+      }]);
     }
+    
+    // Scroll to bottom if cart is not visible
+    setTimeout(() => {
+      if (menuContainerRef.current) {
+        menuContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
+    }, 100);
   };
 
   const removeFromCart = (itemId) => {
@@ -61,12 +78,16 @@ const GuestMenu = () => {
 
   const getTotalTokens = () => {
     return cart.reduce((total, cartItem) => {
-      return total + (cartItem.item.price * cartItem.quantity);
+      return total + (cartItem.price * cartItem.quantity);
     }, 0);
   };
 
   const placeOrder = async () => {
     if (cart.length === 0) return;
+    if (getTotalTokens() > (user?.tokens || 0)) {
+      setMessage('Insufficient tokens available');
+      return;
+    }
 
     setPlacing(true);
     setMessage('');
@@ -79,19 +100,29 @@ const GuestMenu = () => {
         }))
       };
 
-      await guestAPI.placeOrder(orderData);
+      // Submit order
+      const response = await guestAPI.placeOrder(orderData);
       
-      // Update user tokens
-      const newTokenCount = user.tokens - getTotalTokens();
-      updateUser({ ...user, tokens: newTokenCount });
-      
-      setCart([]);
-      setMessage('Order placed successfully!');
-      
-      setTimeout(() => setMessage(''), 3000);
+      if (response.status === 200 || response.status === 201) {
+        // Update tokens locally
+        if (user) {
+          updateUser({
+            ...user,
+            tokens: user.tokens - getTotalTokens()
+          });
+        }
+        
+        setCart([]);
+        setMessage('Order placed successfully!');
+        
+        // Clear message after 3 seconds
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        throw new Error('Failed to place order');
+      }
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Failed to place order';
-      setMessage(errorMessage);
+      console.error('Order placement error:', error);
+      setMessage(error.response?.data?.message || 'Failed to place order. Please try again.');
     } finally {
       setPlacing(false);
     }
@@ -106,7 +137,7 @@ const GuestMenu = () => {
   }
 
   return (
-    <div className="min-h-screen pb-20 bg-gray-50">
+    <div className="min-h-screen pb-32 bg-gray-50"> {/* Increased padding-bottom */}
       <div className="bg-white shadow-sm">
         <div className="px-4 py-6">
           <div className="text-center">
@@ -129,9 +160,17 @@ const GuestMenu = () => {
         </div>
       )}
 
-      <div className="p-4">
+      <div 
+        className="p-4 pb-24" // Added padding-bottom to prevent cart overlay
+        ref={menuContainerRef}
+        style={{
+          overflowY: 'auto',
+          maxHeight: 'calc(100vh - 200px)',
+          scrollBehavior: 'smooth'
+        }}
+      >
         <div className="grid gap-4">
-          {menuItems.map((item) => (
+          {menuItems.filter(item => item.is_available).map((item) => (
             <div key={item.id} className="overflow-hidden bg-white shadow-sm rounded-xl">
               {item.image && (
                 <img 
@@ -163,7 +202,8 @@ const GuestMenu = () => {
                     </span>
                     <button
                       onClick={() => addToCart(item)}
-                      className="flex items-center justify-center w-8 h-8 text-green-600 bg-green-100 rounded-full hover:bg-green-200"
+                      disabled={!item.is_available}
+                      className="flex items-center justify-center w-8 h-8 text-green-600 bg-green-100 rounded-full hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Plus size={16} />
                     </button>
@@ -179,37 +219,39 @@ const GuestMenu = () => {
             </div>
           ))}
         </div>
-
-        {cart.length > 0 && (
-          <div className="fixed z-40 bottom-20 left-4 right-4">
-            <div className="p-4 bg-white border shadow-lg rounded-xl">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-semibold text-gray-900">Cart Total:</span>
-                <span className="text-lg font-bold text-primary">{getTotalTokens()} tokens</span>
-              </div>
-              <button
-                onClick={placeOrder}
-                disabled={placing || getTotalTokens() > (user?.tokens || 0)}
-                className="w-full px-4 py-3 font-semibold text-white transition-colors rounded-lg bg-primary hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {placing ? (
-                  <div className="flex items-center justify-center">
-                    <div className="w-5 h-5 mr-2 border-b-2 border-white rounded-full animate-spin"></div>
-                    Placing Order...
-                  </div>
-                ) : (
-                  `Place Order (${cart.length} items)`
-                )}
-              </button>
-              {getTotalTokens() > (user?.tokens || 0) && (
-                <p className="mt-2 text-sm text-center text-red-600">
-                  Insufficient tokens available
-                </p>
-              )}
-            </div>
-          </div>
-        )}
       </div>
+
+      {cart.length > 0 && (
+        <div className="fixed bottom-20 left-0 right-0 z-40 px-4">
+          <div className="p-4 bg-white border shadow-lg rounded-xl">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-semibold text-gray-900">Cart Total:</span>
+              <span className="text-lg font-bold text-primary">
+                {getTotalTokens()} tokens
+              </span>
+            </div>
+            <button
+              onClick={placeOrder}
+              disabled={placing || getTotalTokens() > (user?.tokens || 0)}
+              className="w-full px-4 py-3 font-semibold text-white transition-colors rounded-lg bg-primary hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {placing ? (
+                <div className="flex items-center justify-center">
+                  <div className="w-5 h-5 mr-2 border-b-2 border-white rounded-full animate-spin"></div>
+                  Placing Order...
+                </div>
+              ) : (
+                `Place Order (${cart.reduce((acc, item) => acc + item.quantity, 0)} items)`
+              )}
+            </button>
+            {getTotalTokens() > (user?.tokens || 0) && (
+              <p className="mt-2 text-sm text-center text-red-600">
+                Insufficient tokens available
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <BottomNavigation />
     </div>
