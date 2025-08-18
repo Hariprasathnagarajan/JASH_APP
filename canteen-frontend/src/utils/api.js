@@ -2,6 +2,7 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
+
 // Helper: Get CSRF token from cookies
 function getCSRFToken() {
   const name = 'csrftoken';
@@ -62,6 +63,7 @@ export const authAPI = {
   login: (credentials) => api.post('/login/', credentials),
   logout: () => api.post('/logout/'),
   getProfile: () => api.get('/profile/'),
+  updatePassword: (passwordData) => api.post('/update_password/', passwordData),
 };
 
 // Employee API
@@ -98,5 +100,6 @@ export const adminAPI = {
   deleteUser: (userId) => api.delete(`/admin/users/${userId}/`),
   refreshTokens: (tokenCount) => api.post('/admin/tokens/refresh/', { token_count: tokenCount }),
 };
+
 
 export default api;

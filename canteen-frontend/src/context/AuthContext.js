@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
         success: false, 
         error: error.response?.data?.message || 'Login failed' 
       };
-    }
+    } 
   };
 
   const logout = async () => {
@@ -54,6 +54,18 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
   };
+  
+  const updatePassword = async (passwordData) => {
+    try {
+      const response = await authAPI.updatePassword(passwordData);
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Failed to update password' 
+      };
+    }
+  };
 
   const value = {
     user,
@@ -62,6 +74,7 @@ export const AuthProvider = ({ children }) => {
     updateUser,
     loading,
     isAuthenticated: !!user,
+    updatePassword,
   };
 
   return (

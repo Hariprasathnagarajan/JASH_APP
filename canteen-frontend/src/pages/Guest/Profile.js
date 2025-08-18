@@ -13,7 +13,7 @@ const GuestProfile = () => {
     <div className="min-h-screen pb-20 bg-gray-50">
       <div className="bg-white shadow-sm">
         <div className="flex items-center justify-between px-4 py-6">
-          <h1 className="flex-grow text-2xl font-bold text-center text-gray-900">Profile</h1>
+          <h1 className="flex-grow text-2xl font-bold text-center text-gray-900">Guest Profile</h1>
         </div>
       </div>
 

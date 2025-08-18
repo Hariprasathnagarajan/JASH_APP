@@ -81,7 +81,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 @api_view(['POST'])
 @permission_classes([IsAdmin])
 def refresh_monthly_tokens(request):
-    token_count = request.data.get('token_count', 30)
+    token_count = request.data.get('token_count', 1500)
 
     users = CustomUser.objects.all()
     for user in users:
