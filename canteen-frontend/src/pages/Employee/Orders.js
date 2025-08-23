@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, Package } from 'lucide-react';
 import { employeeAPI } from '../../utils/api';
-import BottomNavigation from '../../components/Layout/BottomNavigation';
+import { toast } from 'react-toastify';
 
-const GuestOrders = () => {
+const EmployeeOrders = () => {
   const [orders, setOrders] = useState({ today_orders: [], past_orders: [] });
   const [loading, setLoading] = useState(true);
 
@@ -12,11 +12,13 @@ const GuestOrders = () => {
   }, []);
 
   const fetchOrders = async () => {
+    setLoading(true);
     try {
       const response = await employeeAPI.getOrders();
       setOrders(response.data);
     } catch (error) {
       console.error('Error fetching orders:', error);
+      toast.error('Failed to load orders');
     } finally {
       setLoading(false);
     }
@@ -145,10 +147,8 @@ const GuestOrders = () => {
           )}
         </div>
       </div>
-
-      <BottomNavigation />
     </div>
   );
 };
 
-export default GuestOrders;
+export default EmployeeOrders;

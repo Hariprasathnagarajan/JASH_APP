@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='your-secret-key-here')
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -22,9 +22,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Keep this high but after SessionMiddleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -33,6 +33,31 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'canteen_backend.urls'
+
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',  # Default React port
+    'http://127.0.0.1:3000',
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+# CSRF settings
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
+
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False  # Let JavaScript read the CSRF token
+CSRF_USE_SESSIONS = False
+
+# Session settings
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_SECURE = False     # Set to True in production with HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_AGE = 1209600  # 2 weeks, in seconds
 
 TEMPLATES = [
     {

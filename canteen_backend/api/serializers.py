@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from .models import CustomUser, MenuItem, Order, OrderItem, ShiftToken
+from .models import CustomUser, MenuItem, Order, OrderItem, MonthlyToken
 
 class CustomUserCreateSerializer(serializers.ModelSerializer):
     role = serializers.ChoiceField(choices=CustomUser.ROLE_CHOICES)
@@ -25,12 +25,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'work_shift', 'user_id', 'tokens']
 
     def get_tokens(self, obj):
-        now = timezone.now()
-        try:
-            token_obj = obj.shift_tokens.get()
-            return token_obj.count
-        except ShiftToken.DoesNotExist:
-            return 0
+        return obj.current_tokens()
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
@@ -106,30 +101,20 @@ class OrderSerializer(serializers.ModelSerializer):
 
         return order
 
-class ShiftTokenSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField()  # Displays username
-    shift = serializers.ChoiceField(choices=ShiftToken.SHIFT_CHOICES)
+class MonthlyTokenSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()
 
     class Meta:
-        model = ShiftToken
-        fields = ['id', 'user', 'count', 'shift']
-
-    def validate_date(self, value):
-        if value > timezone.now().date():
-            raise serializers.ValidationError("Date cannot be in the future.")
-        return value
+        model = MonthlyToken
+        fields = ['id', 'user', 'count', 'month', 'year']
 
     def validate(self, data):
-        user = self.context['request'].user if 'request' in self.context else None
-        existing = ShiftToken.objects.filter(
-            user=data['user'],
-            shift=data['shift']
+        # Ensure unique month/year per user
+        existing = MonthlyToken.objects.filter(
+            user=data['user'], month=data['month'], year=data['year']
         )
         if self.instance:
             existing = existing.exclude(pk=self.instance.pk)
         if existing.exists():
-            raise serializers.ValidationError("Token entry for this user, date, and shift already exists.")
+            raise serializers.ValidationError("Monthly token for this user and month/year already exists.")
         return data
-
-    def create(self, data):
-        return super().create(data)

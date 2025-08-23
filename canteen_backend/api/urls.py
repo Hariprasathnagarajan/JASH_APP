@@ -22,11 +22,11 @@ urlpatterns = [
 
     # Employee endpoints
     path('employee/menu/', views.employee_menu, name='employee_menu'),
-    path('employee/order/', views.place_order, name='place_order'),
+    path('employee/order/', views.employee_place_order, name='employee_place_order'),
     path('employee/orders/', views.employee_orders, name='employee_orders'),
    
      # Guest endpoints
     path('guest/menu/', views.guest_menu, name='guest_menu'),
-    path('guest/order/', views.place_order, name='guest_order'),
+    path('guest/order/', views.guest_place_order, name='guest_order'),
     path('guest/orders/', views.guest_orders, name='guest_orders'),
 ]

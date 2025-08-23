@@ -6,44 +6,91 @@ from django.contrib.auth import login, logout
 from django.utils import timezone
 from django.db.models import Q
 from django.views.decorators.csrf import ensure_csrf_cookie
-from .models import CustomUser, MenuItem, Order, ShiftToken
+from .models import CustomUser, MenuItem, Order, MonthlyToken
 from .serializers import (
     CustomUserSerializer, CustomUserCreateSerializer, LoginSerializer,
-    MenuItemSerializer, OrderSerializer, ShiftTokenSerializer
+    MenuItemSerializer, OrderSerializer, MonthlyTokenSerializer
 )
 from .permissions import IsAdmin, IsGuest, IsStaffOrAdmin, IsEmployee
 
 
-# ✅ CSRF token view
+# CSRF token view
 @api_view(['GET'])
 @ensure_csrf_cookie
 @permission_classes([AllowAny])
 def csrf_token_view(request):
-    return Response({'message': 'CSRF cookie set'})
+    response = Response({'message': 'CSRF cookie set'})
+    response['X-CSRFToken'] = request.META.get('CSRF_COOKIE', '')
+    return response
 
 
-# ✅ Login view
+# Login view
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@ensure_csrf_cookie
 def login_view(request):
-    serializer = LoginSerializer(data=request.data)
+    serializer = LoginSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
     user = serializer.validated_data['user']
     login(request, user)
-# Adding Token for header
+    
+    # Get or create a new session
+    if not request.session.session_key:
+        request.session.create()
+    
+    # Set session cookie attributes
+    request.session.modified = True
+    
+    # Serialize user data
     user_serializer = CustomUserSerializer(user)
-    return Response({'message': 'Login successful', 'user': user_serializer.data})
+    
+    response = Response({
+        'message': 'Login successful', 
+        'user': user_serializer.data,
+        'sessionid': request.session.session_key
+    })
+    
+    # Set session cookie
+    response.set_cookie(
+        'sessionid', 
+        request.session.session_key,
+        httponly=True,
+        samesite='Lax',
+        max_age=1209600  # 2 weeks
+    )
+    
+    return response
 
 
-# ✅ Logout view
+# Logout view
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
+    # Get session key before logging out
+    session_key = request.session.session_key
+    
+    # Logout the user
     logout(request)
-    return Response({'message': 'Logout successful'})
+    
+    # Delete the session from the database
+    if session_key:
+        from django.contrib.sessions.models import Session
+        try:
+            Session.objects.get(session_key=session_key).delete()
+        except Session.DoesNotExist:
+            pass
+    
+    # Create response
+    response = Response({'message': 'Logout successful'})
+    
+    # Delete the session cookie
+    response.delete_cookie('sessionid')
+    response.delete_cookie('csrftoken')
+    
+    return response
 
 
-# ✅ Profile view
+# Profile view
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def profile_view(request):
@@ -81,19 +128,22 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 @api_view(['POST'])
 @permission_classes([IsAdmin])
 def refresh_monthly_tokens(request):
-    token_count = request.data.get('token_count', 1500)
+    token_count = int(request.data.get('token_count', 1500))
+    now = timezone.now()
 
     users = CustomUser.objects.all()
     for user in users:
-        token_obj, created = ShiftToken.objects.get_or_create(
+        token_obj, created = MonthlyToken.objects.get_or_create(
             user=user,
+            month=now.month,
+            year=now.year,
             defaults={'count': token_count}
         )
         if not created:
             token_obj.count = token_count
             token_obj.save()
 
-    return Response({'message': f'Tokens refreshed for all users: {token_count} tokens'})
+    return Response({'message': f'Tokens refreshed for all users for {now.month}/{now.year}: {token_count} tokens'})
 
 
 # ✅ Staff: Menu management
@@ -113,11 +163,13 @@ class StaffOrderViewSet(viewsets.ModelViewSet):
         queryset = Order.objects.all()
         search = self.request.query_params.get('search')
         if search:
-            queryset = queryset.filter(
-                Q(user__username__icontains=search) |
-                Q(user__user_id__icontains=search) |
-                Q(id__icontains=search)
-            )
+            query = Q(user__username__icontains=search) | Q(user__user_id__icontains=search)
+            if str(search).isdigit():
+                try:
+                    query = query | Q(id=int(search))
+                except ValueError:
+                    pass
+            queryset = queryset.filter(query)
         return queryset
 
     @action(detail=True, methods=['patch'])
@@ -144,7 +196,7 @@ def employee_menu(request):
 # ✅ Employee: Place order
 @api_view(['POST'])
 @permission_classes([IsEmployee])
-def place_order(request):
+def employee_place_order(request):
     items = request.data.get('items', [])
     if not items:
         return Response({'error': 'No items provided'}, status=status.HTTP_400_BAD_REQUEST)
@@ -163,8 +215,8 @@ def place_order(request):
     current_year = timezone.now().year
 
     try:
-        token_obj = user.shift_tokens.get(month=current_month, year=current_year)
-    except ShiftToken.DoesNotExist:
+        token_obj = user.monthly_tokens.get(month=current_month, year=current_year)
+    except MonthlyToken.DoesNotExist:
         return Response({'error': 'No tokens available for this month'}, status=status.HTTP_400_BAD_REQUEST)
 
     if token_obj.count < total_tokens_needed:
@@ -214,7 +266,7 @@ def guest_menu(request):
 # ✅ Guest: Place order
 @api_view(['POST'])
 @permission_classes([IsGuest])
-def place_order(request):
+def guest_place_order(request):
     items = request.data.get('items', [])
     if not items:
         return Response({'error': 'No items provided'}, status=status.HTTP_400_BAD_REQUEST)
@@ -233,8 +285,8 @@ def place_order(request):
     current_year = timezone.now().year
 
     try:
-        token_obj = user.shift_tokens.get(month=current_month, year=current_year)
-    except ShiftToken.DoesNotExist:
+        token_obj = user.monthly_tokens.get(month=current_month, year=current_year)
+    except MonthlyToken.DoesNotExist:
         return Response({'error': 'No tokens available for this month'}, status=status.HTTP_400_BAD_REQUEST)
 
     if token_obj.count < total_tokens_needed:

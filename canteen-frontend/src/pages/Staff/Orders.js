@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Clock, CheckCircle, XCircle, Package, Filter } from 'lucide-react';
 import { staffAPI } from '../../utils/api';
-import TopNavigation from '../../components/Layout/TopNavigation';
+import { toast } from 'react-toastify';
 
 const StaffOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -15,27 +15,33 @@ const StaffOrders = () => {
     },[]);
     
   const fetchOrders = async () => {
+        setLoading(true);
         try {
           const response = await staffAPI.getOrders(searchTerm);
           setOrders(response.data.results || response.data);
         } catch (error) {
           console.error('Error fetching orders:', error);
+          toast.error('Failed to load orders');
         } finally {    
           setLoading(false);
         }
       };
 
   const updateOrderStatus = async (orderId, status) => {
-    setUpdating({ ...updating, [orderId]: true });
+    setUpdating((prev) => ({ ...prev, [orderId]: true }));
     try {
       await staffAPI.updateOrderStatus(orderId, status);
-      setOrders(orders.map(order => 
-        order.id === orderId ? { ...order, status } : order
-      ));
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderId ? { ...order, status } : order
+        )
+      );
+      toast.success(`Order ${status === 'approved' ? 'approved' : status === 'declined' ? 'declined' : 'updated'}`);
     } catch (error) {
       console.error('Error updating order:', error);
+      toast.error('Failed to update order');
     } finally {
-      setUpdating({ ...updating, [orderId]: false });
+      setUpdating((prev) => ({ ...prev, [orderId]: false }));
     }
   };
 
@@ -47,6 +53,8 @@ const StaffOrders = () => {
         return <CheckCircle className="w-5 h-5 text-green-500" />;
       case 'declined':
         return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'completed':
+        return <Package className="w-5 h-5 text-blue-500" />;
       default:
         return <Clock className="w-5 h-5 text-gray-500" />;
     }
@@ -119,7 +127,7 @@ const StaffOrders = () => {
         {order.status === 'pending' && (
           <div className="flex space-x-2">
             <button
-              onClick={() => updateOrderStatus(order.id, 'completed')}
+              onClick={() => updateOrderStatus(order.id, 'approved')}
               disabled={updating[order.id]}
               className="flex-1 px-4 py-2 text-sm font-medium text-white transition-colors bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50"
             >
@@ -140,7 +148,7 @@ const StaffOrders = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <TopNavigation />
+      
       
       <div className="p-4 space-y-4">
         {/* Search and Filter */}
@@ -152,8 +160,23 @@ const StaffOrders = () => {
               placeholder="Search by username, user ID, or order ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') fetchOrders(); }}
               className="w-full py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
+            <div className="flex items-center justify-end mt-2 space-x-2">
+              <button
+                onClick={fetchOrders}
+                className="px-3 py-2 text-sm font-medium text-white rounded-lg bg-primary hover:bg-blue-700"
+              >
+                Search
+              </button>
+              <button
+                onClick={() => { setSearchTerm(''); fetchOrders(); }}
+                className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
           
           <div className="flex items-center space-x-2">

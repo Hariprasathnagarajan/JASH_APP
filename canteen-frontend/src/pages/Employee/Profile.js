@@ -1,8 +1,7 @@
 import React from 'react';
 import { User, CreditCard, Badge, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import BottomNavigation from '../../components/Layout/BottomNavigation';
-
+ 
 const EmployeeProfile = () => {
   const { user, logout } = useAuth();  
   const handleLogout = () => {
@@ -78,7 +77,6 @@ const EmployeeProfile = () => {
         </div>
       </div>
 
-      <BottomNavigation />
     </div>
   );
 };

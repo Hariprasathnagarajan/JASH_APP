@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Save, X, UserCheck, Search, CreditCard } from 'lucide-react';
 import { adminAPI } from '../../utils/api';
-import TopNavigation from '../../components/Layout/TopNavigation';
 
 const UserForm = ({ formData, setFormData, handleSubmit, resetForm, editingUser }) => (
   <div className="p-4 mb-4 bg-white shadow-sm rounded-xl">
@@ -247,7 +246,6 @@ const handleSubmit = async (e) => {
 
   return (
     <div className="flex flex-col h-full">
-       <TopNavigation title="User Management" />
    <div className="p-4">
       {/* Header */}
       <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">

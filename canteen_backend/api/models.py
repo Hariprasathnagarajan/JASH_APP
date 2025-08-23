@@ -20,45 +20,17 @@ class CustomUser(AbstractUser):
     user_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
 
     def save(self, *args, **kwargs):
-        if not self.pk:
-            # Set password to username before saving
-            self.password = make_password(self.username)                
-        
+        # Only set a default password if creating and no password has been set
+        if not self.pk and not self.password:
+            self.password = make_password(self.username)
         super().save(*args, **kwargs)
 
     def current_tokens(self):
         now = timezone.now()
         try:
-            token_obj = self.shift_tokens.get(month=now.month, year=now.year)
+            token_obj = self.monthly_tokens.get(month=now.month, year=now.year)
             return token_obj.count
-        except ShiftToken.DoesNotExist:
-            return 0
-
-    def __str__(self):
-        return self.username
-    WORK_SHIFT_CHOICES = [
-        ('day', 'Day'),
-        ('mid', 'Mid'),
-        ('night', 'Night'),
-    ]
-    
-    ROLE_CHOICES = [
-        ('admin', 'Admin'),
-        ('staff', 'Staff'),
-        ('employee', 'Employee'),
-        ('guest', 'Guest'),
-    ]
-
-    work_shift = models.CharField(max_length=10, choices=WORK_SHIFT_CHOICES, default='day')
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='employee')
-    user_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
-
-    def current_tokens(self):
-        now = timezone.now()
-        try:
-            token_obj = self.shift_tokens.get(month=now.month, year=now.year)
-            return token_obj.count
-        except ShiftToken.DoesNotExist:
+        except MonthlyToken.DoesNotExist:
             return 0
 
     def __str__(self):
@@ -76,29 +48,23 @@ class MenuItem(models.Model):
         return self.name
 
 
-class ShiftToken(models.Model):
-    SHIFT_CHOICES = [
-        ('morning', 'Morning'),
-        ('evening', 'Evening'),
-        ('night', 'Night'),
-    ]
-
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='shift_tokens')
+class MonthlyToken(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='monthly_tokens')
     count = models.PositiveIntegerField(default=0)
-    shift = models.CharField(max_length=10, choices=SHIFT_CHOICES)
+    month = models.PositiveIntegerField()  # 1-12
+    year = models.PositiveIntegerField()   # e.g., 2025
 
     class Meta:
-        unique_together = ['user', 'shift']
-        ordering = ['-id', 'shift']
+        unique_together = ('user', 'month', 'year')
 
     def __str__(self):
-        return f"{self.user.username} - {self.count} tokens ({self.shift} shift)"
+        return f"{self.user.username} - {self.count} ({self.month}/{self.year})"
 
 
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
-        ('approve', 'Approve'),
+        ('approved', 'Approved'),
         ('declined', 'Declined'),
         ('completed', 'Completed'),
     ]

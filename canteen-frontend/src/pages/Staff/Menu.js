@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { staffAPI } from '../../utils/api';
-import TopNavigation from '../../components/Layout/TopNavigation';
 
 const MenuForm = ({ editingItem, formData, setFormData, handleSubmit, resetForm }) => (
   <div className="p-4 mb-4 bg-white shadow-sm rounded-xl">
@@ -208,9 +207,7 @@ const StaffMenu = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <TopNavigation />
-      
+    <div className="min-h-screen bg-gray-50">      
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-gray-900">Menu Management</h1>

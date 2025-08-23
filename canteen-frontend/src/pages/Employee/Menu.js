@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Minus, ShoppingCart, Search, X, Key } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Search, X, User } from 'lucide-react';
 import { employeeAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
-import BottomNavigation from '../../components/Layout/BottomNavigation';
-import PasswordResetModal from '../../components/PasswordResetModal';
+import { Link } from 'react-router-dom';
+ 
 
-const POLLING_INTERVAL = 30000; // 30 seconds
+const POLLING_INTERVAL = 3000; // 3 seconds
 
 const EmployeeMenu = () => {
   const [menuItems, setMenuItems] = useState([]);
@@ -16,7 +16,6 @@ const EmployeeMenu = () => {
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
   const { user, updateUser } = useAuth();
-  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const menuContainerRef = useRef(null);
   const refreshIntervalRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -77,10 +76,6 @@ const EmployeeMenu = () => {
       }
       if (userData) {
         updateUser(userData);
-        // Check if user is using default password (username as password)
-        if (userData.requires_password_change) {
-          setShowPasswordReset(true);
-        }
       }
 
     } catch (error) {
@@ -197,31 +192,24 @@ const EmployeeMenu = () => {
 
   return (
     <div className="min-h-screen pb-32 bg-gray-50">
-      {/* Password Reset Modal */}
-      <PasswordResetModal 
-        show={showPasswordReset}
-        onClose={() => setShowPasswordReset(false)}
-        username={user?.username}
-      />
-
       <div className="bg-white shadow-sm">
         <div className="px-4 py-6">
           <div className="flex items-center justify-between">
-            <div className="text-center flex-grow">
+            <div className="flex-grow text-center">
               <h1 className="text-2xl font-bold text-gray-900">Today's Menu</h1>
               <div className="inline-flex items-center px-3 py-1 mt-2 text-sm font-medium text-green-800 bg-green-100 rounded-full">
                 <ShoppingCart size={16} className="mr-1" />
                 {user?.tokens || 0} tokens available
               </div>
             </div>
-            <button 
-              onClick={() => setShowPasswordReset(true)}
-              className="flex items-center px-3 py-1 space-x-1 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-              title="Change Password"
+            <Link 
+              to="/employee/profile"
+              className="flex items-center px-3 py-1 space-x-1 text-blue-600 rounded-lg bg-blue-50 hover:bg-blue-100"
+              title="Profile"
             >
-              <Key size={16} />
-              <span className="hidden sm:inline">Password</span>
-            </button>
+              <User size={16} />
+              <span className="hidden sm:inline">Profile</span>
+            </Link>
           </div>
           
           {/* Search Bar */}
@@ -278,7 +266,7 @@ const EmployeeMenu = () => {
             <p className="text-gray-500">Try a different search term</p>
             <button
               onClick={() => setSearchTerm('')}
-              className="mt-4 px-4 py-2 text-sm font-medium text-primary hover:text-primary-dark"
+              className="px-4 py-2 mt-4 text-sm font-medium text-primary hover:text-primary-dark"
             >
               Clear search
             </button>
@@ -341,7 +329,7 @@ const EmployeeMenu = () => {
       </div>
 
       {cart.length > 0 && (
-        <div className="fixed bottom-20 left-0 right-0 z-40 px-4">
+        <div className="fixed left-0 right-0 z-40 px-4 bottom-20">
           <div className="p-4 bg-white border shadow-lg rounded-xl">
             <div className="flex items-center justify-between mb-3">
               <span className="font-semibold text-gray-900">Cart Total:</span>
@@ -372,7 +360,7 @@ const EmployeeMenu = () => {
         </div>
       )}
 
-      <BottomNavigation />
+  
     </div>
   );
 };

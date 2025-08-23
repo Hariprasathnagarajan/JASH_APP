@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
 
 
 // Helper: Get CSRF token from cookies
@@ -28,11 +28,27 @@ const api = axios.create({
   },
 });
 
+// Ensure we have a CSRF token before making any requests
+const ensureCSRFToken = async () => {
+  try {
+    await axios.get(`${API_BASE_URL}/csrf/`, {
+      withCredentials: true,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (error) {
+    console.error('Failed to get CSRF token:', error);
+    throw error;
+  }
+};
+
 // Interceptor: Attach CSRF token for modifying requests
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     const method = config.method?.toLowerCase();
     if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      await ensureCSRFToken();
       const csrfToken = getCSRFToken();
       if (csrfToken) {
         config.headers['X-CSRFToken'] = csrfToken;
@@ -43,14 +59,27 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor: Handle 401s (optional)
+// Interceptor: Handle authentication errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Optional: redirect or notify
-      window.location.href = '/login';
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // Handle 401 Unauthorized
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      // Redirect to login if not already on login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
+    
+    // Handle CSRF token issues
+    if (error.response?.status === 403 && error.response.data?.code === 'csrf_token_mismatch') {
+      await ensureCSRFToken();
+      return api(originalRequest);
+    }
+    
     return Promise.reject(error);
   }
 );

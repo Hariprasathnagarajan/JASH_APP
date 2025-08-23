@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Minus, ShoppingCart, Search, X, Key } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Search, X, User } from 'lucide-react';
 import { guestAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
-import BottomNavigation from '../../components/Layout/BottomNavigation';
-import PasswordResetModal from '../../components/PasswordResetModal';
+import { Link } from 'react-router-dom';
 
 const POLLING_INTERVAL = 30000; // 30 seconds
 
@@ -16,7 +15,6 @@ const GuestMenu = () => {
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
   const { user, updateUser } = useAuth();
-  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const menuContainerRef = useRef(null);
   const refreshIntervalRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -77,10 +75,6 @@ const GuestMenu = () => {
       }
       if (userData) {
         updateUser(userData);
-        // Check if user is using default password (username as password)
-        if (userData.requires_password_change) {
-          setShowPasswordReset(true);
-        }
       }
 
     } catch (error) {
@@ -197,13 +191,6 @@ const GuestMenu = () => {
 
   return (
     <div className="min-h-screen pb-32 bg-gray-50">
-      {/* Password Reset Modal */}
-      <PasswordResetModal 
-        show={showPasswordReset}
-        onClose={() => setShowPasswordReset(false)}
-        username={user?.username}
-      />
-
       <div className="bg-white shadow-sm">
         <div className="px-4 py-6">
           <div className="flex items-center justify-between">
@@ -214,14 +201,14 @@ const GuestMenu = () => {
                 {user?.tokens || 0} tokens available
               </div>
             </div>
-            <button 
-              onClick={() => setShowPasswordReset(true)}
+            <Link 
+              to="/guest/profile"
               className="flex items-center px-3 py-1 space-x-1 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-              title="Change Password"
+              title="Profile"
             >
-              <Key size={16} />
-              <span className="hidden sm:inline">Password</span>
-            </button>
+              <User size={16} />
+              <span className="hidden sm:inline">Profile</span>
+            </Link>
           </div>
           
           {/* Search Bar */}
@@ -372,7 +359,6 @@ const GuestMenu = () => {
         </div>
       )}
 
-      <BottomNavigation />
     </div>
   );
 };

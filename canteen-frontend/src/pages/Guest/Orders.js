@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, Package } from 'lucide-react';
 import { guestAPI } from '../../utils/api';
-import BottomNavigation from '../../components/Layout/BottomNavigation';
+
 
 const GuestOrders = () => {
   const [orders, setOrders] = useState({ today_orders: [], past_orders: [] });
@@ -146,7 +146,6 @@ const GuestOrders = () => {
         </div>
       </div>
 
-      <BottomNavigation />
     </div>
   );
 };

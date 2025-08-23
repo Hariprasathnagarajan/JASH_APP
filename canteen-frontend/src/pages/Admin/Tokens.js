@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { RefreshCw, CreditCard, Users } from 'lucide-react';
 import { adminAPI } from '../../utils/api';
-import TopNavigation from '../../components/Layout/TopNavigation';
 
 const AdminTokens = () => {
   const [tokenCount, setTokenCount] = useState(30);
@@ -25,7 +24,6 @@ const AdminTokens = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <TopNavigation />
       
       <div className="p-4">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Token Management</h1>
