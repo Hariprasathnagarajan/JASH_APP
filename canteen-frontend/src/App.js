@@ -9,7 +9,6 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // Pages
 import Login from './pages/Login';
-import Unauthorized from './pages/Unauthorized';
 
 // Employee Pages
 import EmployeeMenu from './pages/Employee/Menu';
@@ -31,6 +30,7 @@ import StaffProfile from './pages/Staff/Profile';
 import AdminUsers from './pages/Admin/Users';
 import AdminTokens from './pages/Admin/Tokens';
 import AdminProfile from './pages/Admin/Profile';
+import AdminDashboard from './pages/Admin/Dashboard';
 
 // Loading component
 const LoadingFallback = () => (
@@ -176,6 +176,18 @@ const App = () => {
               } />
 
               {/* Admin Routes */}
+              <Route path="/admin" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Navigate to="/admin/dashboard" replace />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/dashboard" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Layout>
+                    <AdminDashboard />
+                  </Layout>
+                </ProtectedRoute>
+              } />
               <Route path="/admin/users" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <Layout>

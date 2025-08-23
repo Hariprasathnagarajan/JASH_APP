@@ -35,9 +35,23 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.getProfile();
       const userData = response.data;
       
-      setUser(userData);
-      setIsAuthenticated(true);
-      // Avoid global welcome toasts here to prevent repeated toasts on every route change
+      // If user is admin or staff, don't use localStorage
+      if (userData.role === 'admin' || userData.role === 'staff') {
+        setUser(userData);
+        setIsAuthenticated(true);
+        return userData;
+      }
+      
+      // For other roles, check localStorage
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setIsAuthenticated(true);
+      } else {
+        setUser(userData);
+        setIsAuthenticated(true);
+      }
       
       return userData;
     } catch (error) {
@@ -82,14 +96,16 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       setIsAuthenticated(true);
       
-      // Store minimal user data in localStorage
-      localStorage.setItem('user', JSON.stringify({
-        id: userData.id,
-        username: userData.username,
-        email: userData.email,
-        role: userData.role,
-        name: userData.name
-      }));
+      // Only store user data in localStorage for non-admin and non-staff users
+      if (userData.role !== 'admin' && userData.role !== 'staff') {
+        localStorage.setItem('user', JSON.stringify({
+          id: userData.id,
+          username: userData.username,
+          email: userData.email,
+          role: userData.role,
+          name: userData.name
+        }));
+      }
       
       setLoading(false);
       return { success: true, user: userData };
@@ -110,7 +126,11 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       setLoading(true);
-      await authAPI.logout();
+      
+      // Only call logout API if we have a valid session
+      if (isAuthenticated) {
+        await authAPI.logout();
+      }
       
       // Clear user data and authentication state
       setUser(null);
@@ -138,22 +158,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const updateUser = (userData) => {
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
-  };
-  
-  const updatePassword = async (passwordData) => {
-    try {
-      const response = await authAPI.updatePassword(passwordData);
-      return { success: true };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.message || 'Failed to update password' 
-      };
-    }
-  };
+  // User and password update functionality can be added here when needed
 
   // Check if user has any of the required roles
   const hasRole = (requiredRoles) => {

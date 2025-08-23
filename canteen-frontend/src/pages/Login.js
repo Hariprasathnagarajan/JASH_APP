@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Loader2, Eye, EyeOff, Lock, User, LogIn } from 'lucide-react';
@@ -19,12 +19,19 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   
+  const redirectUser = useCallback((role) => {
+    const fromState = location.state?.from;
+    const fromPath = typeof fromState === 'string' ? fromState : fromState?.pathname;
+    const target = (fromPath && fromPath !== '/login') ? fromPath : getDefaultRoute(role);
+    navigate(target, { replace: true });
+  }, [location.state, navigate]);
+
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
       redirectUser(user?.role);
     }
-  }, [isAuthenticated, user, location, navigate]);
+  }, [isAuthenticated, user, redirectUser]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -77,12 +84,6 @@ const Login = () => {
     return true;
   };
 
-  const redirectUser = (role) => {
-    const fromState = location.state?.from;
-    const fromPath = typeof fromState === 'string' ? fromState : fromState?.pathname;
-    const target = (fromPath && fromPath !== '/login') ? fromPath : getDefaultRoute(role);
-    navigate(target, { replace: true });
-  };
 
   if (authLoading) {
     return (

@@ -1,17 +1,18 @@
+from datetime import timedelta
+from django.db.models import Q, Count, Sum, F
+from django.utils import timezone
+from django.contrib.auth import login, logout
+from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from django.contrib.auth import login, logout
-from django.utils import timezone
-from django.db.models import Q
-from django.views.decorators.csrf import ensure_csrf_cookie
+from .permissions import IsAdmin, IsStaffOrAdmin, IsEmployee, IsGuest
 from .models import CustomUser, MenuItem, Order, MonthlyToken
 from .serializers import (
     CustomUserSerializer, CustomUserCreateSerializer, LoginSerializer,
     MenuItemSerializer, OrderSerializer, MonthlyTokenSerializer
 )
-from .permissions import IsAdmin, IsGuest, IsStaffOrAdmin, IsEmployee
 
 
 # CSRF token view
@@ -98,7 +99,7 @@ def profile_view(request):
     return Response(serializer.data)
 
 
-# ✅ Admin user management
+# Admin user management
 class AdminUserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.exclude(role='admin')
     permission_classes = [IsAdmin]
@@ -113,25 +114,29 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        MonthlyToken.objects.create(
-            user=user,
-            count=0,
-            month=timezone.now().month,
-            year=timezone.now().year
-        )
-        print(user)
+        # Only create tokens for non-admin and non-staff users
+        if user.role not in ['admin', 'staff']:
+            MonthlyToken.objects.create(
+                user=user,
+                count=0,
+                month=timezone.now().month,
+                year=timezone.now().year
+            )
+            
         output_serializer = CustomUserSerializer(user)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
 
-# ✅ Token refresh
+# Token refresh
 @api_view(['POST'])
 @permission_classes([IsAdmin])
 def refresh_monthly_tokens(request):
     token_count = int(request.data.get('token_count', 1500))
     now = timezone.now()
+    updated_count = 0
 
-    users = CustomUser.objects.all()
+    # Only update tokens for non-admin and non-staff users
+    users = CustomUser.objects.exclude(role__in=['admin', 'staff'])
     for user in users:
         token_obj, created = MonthlyToken.objects.get_or_create(
             user=user,
@@ -142,18 +147,22 @@ def refresh_monthly_tokens(request):
         if not created:
             token_obj.count = token_count
             token_obj.save()
+        updated_count += 1
 
-    return Response({'message': f'Tokens refreshed for all users for {now.month}/{now.year}: {token_count} tokens'})
+    return Response({
+        'message': f'Tokens refreshed for {updated_count} users for {now.month}/{now.year}: {token_count} tokens each',
+        'users_updated': updated_count
+    })
 
 
-# ✅ Staff: Menu management
+# Staff: Menu management
 class StaffMenuViewSet(viewsets.ModelViewSet):
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
     permission_classes = [IsStaffOrAdmin]
 
 
-# ✅ Staff: Order management
+# Staff: Order management
 class StaffOrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
@@ -184,7 +193,7 @@ class StaffOrderViewSet(viewsets.ModelViewSet):
         return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# ✅ Employee: View menu
+# Employee: View menu
 @api_view(['GET'])
 @permission_classes([IsEmployee])
 def employee_menu(request):
@@ -239,7 +248,7 @@ def employee_place_order(request):
 @api_view(['GET'])
 @permission_classes([IsEmployee])
 def employee_orders(request):
-    orders = Order.objects.filter(user=request.user).prefetch_related('order_items__menu_item')
+    orders = Order.objects.filter(employee=request.user).prefetch_related('order_items__menu_item')
     today = timezone.now().date()
 
     today_orders = orders.filter(created_at__date=today)
@@ -261,6 +270,25 @@ def guest_menu(request):
     menu_items = MenuItem.objects.filter(is_available=True)
     serializer = MenuItemSerializer(menu_items, many=True)
     return Response(serializer.data)
+
+
+# ✅ Guest: View orders
+@api_view(['GET'])
+@permission_classes([IsGuest])
+def guest_orders(request):
+    orders = Order.objects.filter(guest=request.user).prefetch_related('order_items__menu_item')
+    today = timezone.now().date()
+
+    today_orders = orders.filter(created_at__date=today)
+    past_orders = orders.exclude(created_at__date=today)
+
+    today_serializer = OrderSerializer(today_orders, many=True)
+    past_serializer = OrderSerializer(past_orders, many=True)
+
+    return Response({
+        'today_orders': today_serializer.data,
+        'past_orders': past_serializer.data
+    })
 
 
 # ✅ Guest: Place order
@@ -305,20 +333,206 @@ def guest_place_order(request):
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-# ✅ Guest: View orders
+# Dashboard views
 @api_view(['GET'])
-@permission_classes([IsGuest])
-def guest_orders(request):
-    orders = Order.objects.filter(user=request.user).prefetch_related('order_items__menu_item')
-    today = timezone.now().date()
+@permission_classes([IsAdmin])
+def get_dashboard_stats(request):
+    """Get statistics for the admin dashboard"""
+    try:
+        print("Starting dashboard stats calculation...")
+        
+        # Total users count
+        total_users = CustomUser.objects.count()
+        print(f"Total users: {total_users}")
+        
+        # User growth (percentage change from last month)
+        last_month = timezone.now() - timedelta(days=30)
+        previous_users = CustomUser.objects.filter(
+            date_joined__lt=last_month
+        ).count()
+        
+        user_growth = 0
+        if previous_users > 0:
+            user_growth = ((total_users - previous_users) / previous_users) * 100
+        
+        # Menu items count
+        total_menu_items = MenuItem.objects.count()
+        print(f"Total menu items: {total_menu_items}")
+        
+        # New items this week
+        new_items_this_week = MenuItem.objects.filter(
+            created_at__gte=timezone.now() - timedelta(days=7)
+        ).count()
+        
+        # Today's revenue
+        today = timezone.now().date()
+        print(f"Calculating revenue for {today}")
+        
+        try:
+            todays_orders = Order.objects.filter(
+                created_at__date=today,
+                status='completed'
+            )
+            todays_revenue = todays_orders.aggregate(total=Sum('total_amount'))['total'] or 0
+            print(f"Today's revenue: {todays_revenue}")
+            
+            # Revenue change from yesterday
+            yesterday = today - timedelta(days=1)
+            yesterdays_orders = Order.objects.filter(
+                created_at__date=yesterday,
+                status='completed'
+            )
+            yesterdays_revenue = yesterdays_orders.aggregate(total=Sum('total_amount'))['total'] or 0
+            
+            revenue_change = 0
+            if yesterdays_revenue > 0:
+                revenue_change = ((todays_revenue - yesterdays_revenue) / yesterdays_revenue) * 100
+        except Exception as e:
+            print(f"Error calculating revenue: {str(e)}")
+            todays_revenue = 0
+            revenue_change = 0
+        
+        # Pending orders
+        try:
+            pending_orders = Order.objects.filter(status='pending').count()
+            print(f"Pending orders: {pending_orders}")
+            
+            # Pending change from yesterday
+            yesterday = timezone.now().date() - timedelta(days=1)
+            yesterdays_pending = Order.objects.filter(
+                created_at__date=yesterday,
+                status='pending'
+            ).count()
+            pending_change = pending_orders - yesterdays_pending
+        except Exception as e:
+            print(f"Error calculating pending orders: {str(e)}")
+            pending_orders = 0
+            pending_change = 0
+        
+        # Get shift-wise employee counts
+        try:
+            shift_employees = list(CustomUser.objects.filter(role='employee').values('work_shift').annotate(
+                count=Count('id')
+            ))
+            print(f"Shift employees: {shift_employees}")
+            
+            # Get shift-wise guest counts
+            shift_guests = list(CustomUser.objects.filter(role='guest').values('work_shift').annotate(
+                count=Count('id')
+            ))
+            print(f"Shift guests: {shift_guests}")
+        except Exception as e:
+            print(f"Error getting shift data: {str(e)}")
+            shift_employees = []
+            shift_guests = []
+        
+        # Get total staff count
+        total_staff = CustomUser.objects.filter(role='staff').count()
+        
+        # Format shift data with default values
+        shift_data = {
+            'employees': {item['work_shift']: item['count'] for item in shift_employees if item.get('work_shift')},
+            'guests': {item['work_shift']: item['count'] for item in shift_guests if item.get('work_shift')}
+        }
+        
+        # Ensure all shifts have values
+        for shift in ['day', 'mid', 'night']:
+            if shift not in shift_data['employees']:
+                shift_data['employees'][shift] = 0
+            if shift not in shift_data['guests']:
+                shift_data['guests'][shift] = 0
+        
+        response_data = {
+            'totalUsers': total_users,
+            'userGrowth': round(user_growth, 1),
+            'totalMenuItems': total_menu_items,
+            'newItemsThisWeek': new_items_this_week,
+            'todaysRevenue': float(todays_revenue),
+            'revenueChange': round(revenue_change, 1),
+            'pendingOrders': pending_orders,
+            'pendingChange': pending_change,
+            'shiftData': shift_data,
+            'totalStaff': total_staff,
+            'status': 'success'
+        }
+        
+        print("Dashboard stats calculated successfully")
+        return Response(response_data)
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error in get_dashboard_stats: {str(e)}\n{error_trace}")
+        return Response(
+            {'error': 'Failed to load dashboard statistics', 'details': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
-    today_orders = orders.filter(created_at__date=today)
-    past_orders = orders.exclude(created_at__date=today)
 
-    today_serializer = OrderSerializer(today_orders, many=True)
-    past_serializer = OrderSerializer(past_orders, many=True)
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def get_recent_orders(request):
+    """Get recent orders for the admin dashboard"""
+    limit = int(request.query_params.get('limit', 5))
+    orders = Order.objects.select_related('employee', 'guest')\
+                         .prefetch_related('order_items__menu_item')\
+                         .order_by('-created_at')[:limit]
+    
+    data = []
+    for order in orders:
+        user_name = order.employee.username if order.employee else order.guest.username
+        items = [f"{item.quantity}x {item.menu_item.name}" for item in order.order_items.all()]
+        
+        data.append({
+            'id': order.id,
+            'userName': user_name,
+            'items': items,
+            'totalAmount': float(order.total_amount),
+            'status': order.status,
+            'createdAt': order.created_at
+        })
+    
+    return Response(data)
 
-    return Response({
-        'today_orders': today_serializer.data,
-        'past_orders': past_serializer.data
-    })
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def get_revenue_data(request):
+    """Get revenue data for charts"""
+    period = request.query_params.get('period', 'week')
+    end_date = timezone.now().date()
+    
+    if period == 'week':
+        start_date = end_date - timedelta(days=6)
+        date_range = [start_date + timedelta(days=x) for x in range(7)]
+    elif period == 'month':
+        start_date = end_date - timedelta(days=29)
+        date_range = [start_date + timedelta(days=x) for x in range(30)]
+    else:  # year
+        start_date = end_date - timedelta(days=364)
+        date_range = [start_date + timedelta(days=x*30) for x in range(12)]
+    
+    # Get completed orders in the date range
+    orders = Order.objects.filter(
+        created_at__date__range=[start_date, end_date],
+        status='completed'
+    )
+    
+    # Group by date
+    revenue_by_date = {}
+    for order in orders:
+        date = order.created_at.date()
+        if date in revenue_by_date:
+            revenue_by_date[date] += float(order.total_amount)
+        else:
+            revenue_by_date[date] = float(order.total_amount)
+    
+    # Fill in missing dates with 0
+    data = []
+    for date in date_range:
+        data.append({
+            'date': date,
+            'amount': revenue_by_date.get(date, 0)
+        })
+    
+    return Response(data)

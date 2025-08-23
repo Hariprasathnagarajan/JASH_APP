@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Minus, ShoppingCart, Search, X, User } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Plus, Minus, ShoppingCart, Search, X } from 'lucide-react';
 import { employeeAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
-import { Link } from 'react-router-dom';
  
 
 const POLLING_INTERVAL = 3000; // 3 seconds
@@ -20,10 +19,11 @@ const EmployeeMenu = () => {
   const refreshIntervalRef = useRef(null);
   const searchInputRef = useRef(null);
 
-  const showMessage = (text, type = 'error') => {
+  const showMessage = useCallback((text, type = 'error') => {
     setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 5000);
-  };
+    const timer = setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Filter menu items based on search term
   useEffect(() => {
@@ -38,34 +38,13 @@ const EmployeeMenu = () => {
     }
   }, [searchTerm, menuItems]);
 
-  const fetchMenu = async () => {
-    try {
-      const response = await employeeAPI.getMenu();
-      return response.data;
-    } catch (error) {
-      console.error('Menu fetch error:', error);
-      throw new Error('Failed to fetch menu');
-    }
-  };
-
-  const fetchUserData = async () => {
-    if (!user?.id) return null;
-    try {
-      const response = await employeeAPI.getUserProfile();
-      return response.data;
-    } catch (error) {
-      console.error('User fetch error:', error);
-      throw new Error('Failed to fetch user data');
-    }
-  };
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       
       const [menuData, userData] = await Promise.all([
-        fetchMenu().catch(() => menuItems),
-        fetchUserData().catch(() => null)
+        employeeAPI.getMenu().catch(() => menuItems),
+        employeeAPI.getProfile().catch(() => null)
       ]);
 
       if (menuData) {
@@ -86,7 +65,7 @@ const EmployeeMenu = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [menuItems, searchTerm, updateUser, showMessage]);
 
   useEffect(() => {
     loadData();
@@ -98,7 +77,7 @@ const EmployeeMenu = () => {
     return () => {
       clearInterval(refreshIntervalRef.current);
     };
-  }, [user?.id]);
+  }, [loadData, user?.id]);
 
   const addToCart = (item) => {
     if (!item.is_available) return;
@@ -202,14 +181,6 @@ const EmployeeMenu = () => {
                 {user?.tokens || 0} tokens available
               </div>
             </div>
-            <Link 
-              to="/employee/profile"
-              className="flex items-center px-3 py-1 space-x-1 text-blue-600 rounded-lg bg-blue-50 hover:bg-blue-100"
-              title="Profile"
-            >
-              <User size={16} />
-              <span className="hidden sm:inline">Profile</span>
-            </Link>
           </div>
           
           {/* Search Bar */}
@@ -286,11 +257,18 @@ const EmployeeMenu = () => {
                   />
                 )}
                 <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
-                    <span className="px-2 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded-lg">
-                      {item.price} tokens
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded-lg">
+                        {item.price} tokens
+                      </span>
+                      {!item.is_available && (
+                        <span className="px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded-lg">
+                          Out of Stock
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <p className="mb-4 text-sm text-gray-600">{item.description}</p>
                   

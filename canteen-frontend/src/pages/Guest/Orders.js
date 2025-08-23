@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, Package } from 'lucide-react';
 import { guestAPI } from '../../utils/api';
-
 
 const GuestOrders = () => {
   const [orders, setOrders] = useState({ today_orders: [], past_orders: [] });

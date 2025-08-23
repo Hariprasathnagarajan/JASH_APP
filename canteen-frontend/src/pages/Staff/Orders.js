@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Clock, CheckCircle, XCircle, Package, Filter } from 'lucide-react';
 import { staffAPI } from '../../utils/api';
 import { toast } from 'react-toastify';
@@ -10,22 +10,22 @@ const StaffOrders = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [updating, setUpdating] = useState({});
 
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await staffAPI.getOrders(searchTerm);
+      setOrders(response.data.results || response.data);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast.error('Failed to load orders');
+    } finally {    
+      setLoading(false);
+    }
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchOrders();
-    },[]);
-    
-  const fetchOrders = async () => {
-        setLoading(true);
-        try {
-          const response = await staffAPI.getOrders(searchTerm);
-          setOrders(response.data.results || response.data);
-        } catch (error) {
-          console.error('Error fetching orders:', error);
-          toast.error('Failed to load orders');
-        } finally {    
-          setLoading(false);
-        }
-      };
+  }, [fetchOrders]);
 
   const updateOrderStatus = async (orderId, status) => {
     setUpdating((prev) => ({ ...prev, [orderId]: true }));
@@ -109,7 +109,7 @@ const StaffOrders = () => {
                 {item.menu_item.name} x {item.quantity}
               </span>
               <span className="text-gray-500">
-                {item.tokens_per_item * item.quantity} tokens
+                Qty: {item.quantity}
               </span>
             </div>
           ))}
@@ -120,7 +120,7 @@ const StaffOrders = () => {
             {formatDate(order.created_at)}
           </span>
           <span className="font-semibold text-primary">
-            Total: {order.total_tokens} tokens
+            Order #{order.id}
           </span>
         </div>
 

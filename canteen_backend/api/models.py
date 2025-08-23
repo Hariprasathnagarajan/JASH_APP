@@ -26,6 +26,10 @@ class CustomUser(AbstractUser):
         super().save(*args, **kwargs)
 
     def current_tokens(self):
+        # Admin and staff don't use tokens
+        if self.role in ['admin', 'staff']:
+            return 0
+            
         now = timezone.now()
         try:
             token_obj = self.monthly_tokens.get(month=now.month, year=now.year)

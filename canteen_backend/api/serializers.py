@@ -23,8 +23,14 @@ class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'work_shift', 'user_id', 'tokens']
+        extra_kwargs = {
+            'tokens': {'read_only': True}
+        }
 
     def get_tokens(self, obj):
+        # Don't return tokens for admin and staff users
+        if obj.role in ['admin', 'staff']:
+            return None
         return obj.current_tokens()
 
 class LoginSerializer(serializers.Serializer):

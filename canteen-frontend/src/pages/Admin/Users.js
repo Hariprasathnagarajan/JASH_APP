@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Save, X, UserCheck, Search, CreditCard } from 'lucide-react';
 import { adminAPI } from '../../utils/api';
 
@@ -129,11 +129,7 @@ const AdminUsers = () => {
     work_shift: 'day'
   });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const response = await adminAPI.getUsers();
       setUsers(response.data.results || response.data);
@@ -142,7 +138,11 @@ const AdminUsers = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
 const handleSubmit = async (e) => {
   e.preventDefault();

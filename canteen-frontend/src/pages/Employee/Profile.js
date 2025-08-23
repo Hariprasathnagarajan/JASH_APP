@@ -1,12 +1,8 @@
-import React from 'react';
-import { User, CreditCard, Badge, LogOut } from 'lucide-react';
+import { User, Badge, CreditCard } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
- 
+
 const EmployeeProfile = () => {
-  const { user, logout } = useAuth();  
-  const handleLogout = () => {
-    logout();
-  };
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -63,16 +59,6 @@ const EmployeeProfile = () => {
                 Tokens are refreshed monthly by the admin. Use them to place orders for delicious meals!
               </p>
             </div>
-            <div className="flex justify-center">
-            <button 
-            onClick={handleLogout}
-            className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md"
-            type="button"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>Logout</span>
-          </button>
-          </div>
           </div>
         </div>
       </div>

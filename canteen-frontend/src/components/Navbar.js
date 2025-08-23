@@ -1,14 +1,13 @@
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Menu, X, User, LogOut } from 'lucide-react';
+import { Menu, X, User, BarChart2, Users, CreditCard } from 'lucide-react';
 import LogoutButton from './LogoutButton';
 
 const Navbar = () => {
   const { user, isAuthenticated, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
 
   // Navigation items based on user role
   const getNavItems = () => {
@@ -21,9 +20,9 @@ const Navbar = () => {
     switch (user.role) {
       case 'admin':
         return [
-          { name: 'Dashboard', path: '/admin/dashboard' },
-          { name: 'Users', path: '/admin/users' },
-          { name: 'Tokens', path: '/admin/tokens' },
+          { name: 'Dashboard', path: '/admin/dashboard', icon: <BarChart2 className="h-5 w-5" /> },
+          { name: 'Users', path: '/admin/users', icon: <Users className="h-5 w-5" /> },
+          { name: 'Tokens', path: '/admin/tokens', icon: <CreditCard className="h-5 w-5" /> },
           ...commonItems
         ];
       case 'staff':

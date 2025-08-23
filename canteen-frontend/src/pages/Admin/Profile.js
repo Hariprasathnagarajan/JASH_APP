@@ -1,13 +1,8 @@
-import React from 'react';
-import { User, CreditCard, Badge, LogOut } from 'lucide-react';
+import { User, Badge } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const AdminProfile = () => {
-  const { user, logout } = useAuth();
-
-  const handleLogout = () => {
-    logout();
-  };
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -49,32 +44,16 @@ const AdminProfile = () => {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
-                <CreditCard className="w-5 h-5 text-gray-500" />
-                <div>
-                  <p className="text-sm text-gray-500">Available Tokens</p>
-                  <p className="font-semibold text-green-600 text-lg">{user?.tokens || 0}</p>
-                </div>
-              </div>
+              {/* Tokens not applicable for admin */}
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="font-semibold text-blue-900 mb-2">Profile Information</h3>
               <p className="text-blue-700 text-sm">
-                Admins can manage users, tokens, and view system dashboards.
+                Admins can manage users and view system dashboards.
               </p>
             </div>
 
-            <div className="flex justify-center">
-              <button 
-                onClick={handleLogout}
-                className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md"
-                type="button"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>Logout</span>
-              </button>
-            </div>
           </div>
         </div>
       </div>

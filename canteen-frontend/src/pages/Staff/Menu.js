@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { staffAPI } from '../../utils/api';
 
@@ -103,11 +103,7 @@ const StaffMenu = () => {
     is_available: true
   });
 
-  useEffect(() => {
-    fetchMenu();
-  }, []);
-
-  const fetchMenu = async () => {
+  const fetchMenu = useCallback(async () => {
     try {
       const response = await staffAPI.getMenu();
       setMenuItems(response.data.results || response.data);
@@ -116,7 +112,11 @@ const StaffMenu = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchMenu();
+  }, [fetchMenu]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -241,40 +241,40 @@ const StaffMenu = () => {
             {menuItems.map((item) => (
               <div key={item.id} className="overflow-hidden bg-white shadow-sm rounded-xl">
                 <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
                     <div className="flex items-center space-x-2">
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={item.is_available}
-                        onClick={() => toggleAvailability(item.id, item.is_available)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          item.is_available ? 'bg-primary' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            item.is_available ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        item.is_available 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {item.is_available ? 'Available' : 'Unavailable'}
-                      </span>
                       <span className="px-2 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded-lg">
                         {item.price} tokens
                       </span>
+                      <div className="flex items-center space-x-1">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          item.is_available 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {item.is_available ? 'Available' : 'Unavailable'}
+                        </span>
+                        <button 
+                          type="button"
+                          onClick={() => toggleAvailability(item.id, item.is_available)}
+                          className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${
+                            item.is_available ? 'bg-green-500' : 'bg-gray-300'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              item.is_available ? 'translate-x-5' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </div>
                   </div>
                   
                   <p className="mb-4 text-sm text-gray-600">{item.description}</p>
                   
-                  <div className="flex justify-end space-x-2">
+                  <div className="flex justify-space-between space-x-2">
                     <button
                       onClick={() => handleEdit(item)}
                       className="flex items-center px-3 py-1 space-x-1 text-blue-600 transition-colors rounded-lg hover:text-blue-800 hover:bg-blue-50"
