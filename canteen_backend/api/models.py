@@ -18,6 +18,8 @@ class CustomUser(AbstractUser):
     work_shift = models.CharField(max_length=10, choices=WORK_SHIFT_CHOICES, default='day')
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='employee')
     user_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    monthly_tokens = models.PositiveIntegerField(default=0)
+    last_token_reset = models.DateField(default=timezone.now)
 
     def save(self, *args, **kwargs):
         # Only set a default password if creating and no password has been set
@@ -30,12 +32,14 @@ class CustomUser(AbstractUser):
         if self.role in ['admin', 'staff']:
             return 0
             
-        now = timezone.now()
-        try:
-            token_obj = self.monthly_tokens.get(month=now.month, year=now.year)
-            return token_obj.count
-        except MonthlyToken.DoesNotExist:
-            return 0
+        # Check if we need to reset tokens (new month)
+        now = timezone.now().date()
+        if now.month != self.last_token_reset.month or now.year != self.last_token_reset.year:
+            self.monthly_tokens = 0
+            self.last_token_reset = now
+            self.save(update_fields=['monthly_tokens', 'last_token_reset'])
+            
+        return self.monthly_tokens
 
     def __str__(self):
         return self.username
@@ -50,19 +54,6 @@ class MenuItem(models.Model):
 
     def __str__(self):
         return self.name
-
-
-class MonthlyToken(models.Model):
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='monthly_tokens')
-    count = models.PositiveIntegerField(default=0)
-    month = models.PositiveIntegerField()  # 1-12
-    year = models.PositiveIntegerField()   # e.g., 2025
-
-    class Meta:
-        unique_together = ('user', 'month', 'year')
-
-    def __str__(self):
-        return f"{self.user.username} - {self.count} ({self.month}/{self.year})"
 
 
 class Order(models.Model):

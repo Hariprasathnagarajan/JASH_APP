@@ -21,6 +21,10 @@ urlpatterns = [
     path('admin/dashboard/stats/', views.get_dashboard_stats, name='dashboard_stats'),
     path('admin/dashboard/orders/recent/', views.get_recent_orders, name='recent_orders'),
     path('admin/dashboard/revenue/', views.get_revenue_data, name='revenue_data'),
+    
+    # Token management
+    path('admin/tokens/assign/', views.assign_tokens, name='assign_tokens'),
+    path('admin/tokens/summary/', views.get_token_summary, name='token_summary'),
     path('admin/tokens/refresh/', views.refresh_monthly_tokens, name='refresh_tokens'),
 
     # Employee endpoints

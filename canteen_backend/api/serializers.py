@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from .models import CustomUser, MenuItem, Order, OrderItem, MonthlyToken
+from .models import CustomUser, MenuItem, Order, OrderItem
 
 class CustomUserCreateSerializer(serializers.ModelSerializer):
     role = serializers.ChoiceField(choices=CustomUser.ROLE_CHOICES)
@@ -106,21 +106,3 @@ class OrderSerializer(serializers.ModelSerializer):
         order.save()
 
         return order
-
-class MonthlyTokenSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField()
-
-    class Meta:
-        model = MonthlyToken
-        fields = ['id', 'user', 'count', 'month', 'year']
-
-    def validate(self, data):
-        # Ensure unique month/year per user
-        existing = MonthlyToken.objects.filter(
-            user=data['user'], month=data['month'], year=data['year']
-        )
-        if self.instance:
-            existing = existing.exclude(pk=self.instance.pk)
-        if existing.exists():
-            raise serializers.ValidationError("Monthly token for this user and month/year already exists.")
-        return data

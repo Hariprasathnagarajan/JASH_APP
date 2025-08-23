@@ -8,10 +8,10 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .permissions import IsAdmin, IsStaffOrAdmin, IsEmployee, IsGuest
-from .models import CustomUser, MenuItem, Order, MonthlyToken
+from .models import CustomUser, MenuItem, Order
 from .serializers import (
     CustomUserSerializer, CustomUserCreateSerializer, LoginSerializer,
-    MenuItemSerializer, OrderSerializer, MonthlyTokenSerializer
+    MenuItemSerializer, OrderSerializer
 )
 
 
@@ -131,28 +131,36 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 @api_view(['POST'])
 @permission_classes([IsAdmin])
 def refresh_monthly_tokens(request):
-    token_count = int(request.data.get('token_count', 1500))
-    now = timezone.now()
-    updated_count = 0
-
-    # Only update tokens for non-admin and non-staff users
-    users = CustomUser.objects.exclude(role__in=['admin', 'staff'])
-    for user in users:
-        token_obj, created = MonthlyToken.objects.get_or_create(
-            user=user,
-            month=now.month,
-            year=now.year,
-            defaults={'count': token_count}
+    try:
+        token_count = int(request.data.get('count', 100))
+        if token_count <= 0:
+            return Response(
+                {'error': 'Token count must be a positive number'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Get all non-admin, non-staff users
+        users = CustomUser.objects.exclude(role__in=['admin', 'staff'])
+        now = timezone.now().date()
+        
+        # Update tokens for each user
+        updated = users.update(
+            monthly_tokens=token_count,
+            last_token_reset=now
         )
-        if not created:
-            token_obj.count = token_count
-            token_obj.save()
-        updated_count += 1
-
-    return Response({
-        'message': f'Tokens refreshed for {updated_count} users for {now.month}/{now.year}: {token_count} tokens each',
-        'users_updated': updated_count
-    })
+        
+        return Response({
+            'message': f'Successfully refreshed tokens for {updated} users',
+            'tokens_assigned': token_count,
+            'users_updated': updated,
+            'reset_date': now
+        })
+        
+    except ValueError:
+        return Response(
+            {'error': 'Invalid token count'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 # Staff: Menu management
@@ -332,6 +340,70 @@ def guest_place_order(request):
 
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+
+# Token Management
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def assign_tokens(request):
+    shift = request.data.get('shift')
+    
+    if not shift or shift not in ['day', 'mid', 'night']:
+        return Response(
+            {'error': 'Invalid shift'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    shift_limits = {'day': 50, 'mid': 75, 'night': 100}
+    
+    # Check if it's within the first 3 days of the month
+    today = date.today()
+    if today.day > 3:
+        return Response(
+            {'error': 'Tokens can only be assigned within the first 3 days of the month'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    users = CustomUser.objects.filter(
+        work_shift=shift,
+        role__in=['employee', 'guest']
+    )
+    
+    updated = users.update(monthly_tokens=shift_limits[shift])
+    
+    return Response({
+        'status': 'success',
+        'updated': updated,
+        'tokens_assigned': shift_limits[shift],
+        'shift': shift
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def get_token_summary(request):
+    users = CustomUser.objects.filter(
+        role__in=['employee', 'guest']
+    ).order_by('work_shift', 'username')
+    
+    summary = {
+        'day_shift': {'users': [], 'total_tokens': 0},
+        'mid_shift': {'users': [], 'total_tokens': 0},
+        'night_shift': {'users': [], 'total_tokens': 0}
+    }
+    
+    for user in users:
+        user_data = {
+            'id': user.id,
+            'username': user.username,
+            'name': f"{user.first_name} {user.last_name}".strip(),
+            'tokens': user.monthly_tokens,
+            'role': user.role
+        }
+        
+        if user.work_shift in summary:
+            summary[user.work_shift]['users'].append(user_data)
+            summary[user.work_shift]['total_tokens'] += user.monthly_tokens
+    
+    return Response(summary)
 
 # Dashboard views
 @api_view(['GET'])

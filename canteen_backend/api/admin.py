@@ -1,16 +1,17 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, MenuItem, Order, OrderItem, MonthlyToken
+from .models import CustomUser, MenuItem, Order, OrderItem
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-    list_display = ['username', 'email', 'first_name', 'last_name', 'role', 'work_shift', 'user_id']
-    list_filter = ['role', 'is_active', 'is_staff']
+    list_display = ['username', 'email', 'first_name', 'last_name', 'role', 'work_shift', 'monthly_tokens', 'last_token_reset']
+    list_filter = ['role', 'is_active', 'is_staff', 'work_shift']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'user_id']
     
     fieldsets = UserAdmin.fieldsets + (
-        ('Custom Fields', {'fields': ('role', 'work_shift', 'user_id')}),
-    )   
+        ('Custom Fields', {'fields': ('role', 'work_shift', 'user_id', 'monthly_tokens', 'last_token_reset')}),
+    )
+    readonly_fields = ('last_token_reset',)
 
 @admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
@@ -27,9 +28,3 @@ class OrderAdmin(admin.ModelAdmin):
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ['order', 'menu_item', 'quantity', 'tokens_per_item']
-
-@admin.register(MonthlyToken)
-class MonthlyTokenAdmin(admin.ModelAdmin):
-    list_display = ['user', 'count', 'month', 'year']
-    list_filter = ['month', 'year']
-    search_fields = ['user__username']

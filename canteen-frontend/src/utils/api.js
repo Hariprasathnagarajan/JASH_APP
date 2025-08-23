@@ -123,41 +123,21 @@ export const staffAPI = {
 
 // Admin API
 export const adminAPI = {
+  // User Management
   getUsers: () => api.get('/admin/users/'),
   createUser: (userData) => api.post('/admin/users/', userData),
-  updateUser: (userId, userData) => api.put(`/admin/users/${userId}/`, userData),
+  updateUser: (userId, userData) => api.patch(`/admin/users/${userId}/`, userData),
   deleteUser: (userId) => api.delete(`/admin/users/${userId}/`),
+  
+  // Token Management
   refreshTokens: (tokenCount) => api.post('/admin/tokens/refresh/', { count: tokenCount }),
+  assignTokens: (shift) => api.post('/admin/tokens/assign/', { shift }),
+  getTokenSummary: () => api.get('/admin/tokens/summary/'),
   
   // Dashboard endpoints
-  async getDashboardStats() {
-    try {
-      const response = await api.get('/admin/dashboard/stats/');
-      console.log('Dashboard stats response:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Error in getDashboardStats:', {
-        message: error.message,
-        response: error.response ? {
-          status: error.response.status,
-          statusText: error.response.statusText,
-          data: error.response.data
-        } : 'No response',
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          headers: error.config?.headers
-        }
-      });
-      throw error;
-    }
-  },
-  getRecentOrders(limit = 5) {
-    return api.get(`/admin/recent-orders/?limit=${limit}`);
-  },
-  getRevenueData(period = 'week') {
-    return api.get(`/admin/revenue/?period=${period}`);
-  }
+  getDashboardStats: () => api.get('/admin/dashboard/stats/'),
+  getRecentOrders: (limit = 5) => api.get(`/admin/dashboard/orders/recent/?limit=${limit}`),
+  getRevenueData: (period = 'week') => api.get(`/admin/dashboard/revenue/?period=${period}`)
 };
 
 export default api;
