@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from django.utils import timezone
-from .models import CustomUser, MenuItem, Order, OrderItem
+from .models import CustomUser, MenuItem, Order, OrderItem, ShiftTokenAllocation, TokenDistribution
 
 class CustomUserCreateSerializer(serializers.ModelSerializer):
     role = serializers.ChoiceField(choices=CustomUser.ROLE_CHOICES)
@@ -106,3 +105,20 @@ class OrderSerializer(serializers.ModelSerializer):
         order.save()
 
         return order
+
+
+
+class ShiftTokenAllocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShiftTokenAllocation
+        fields = ['id', 'shift', 'tokens_per_user', 'allocation_month']
+
+
+class TokenDistributionSerializer(serializers.ModelSerializer):
+    user_username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = TokenDistribution
+        fields = ['id', 'user', 'user_username', 'tokens_allocated', 'allocation_month']
+
+

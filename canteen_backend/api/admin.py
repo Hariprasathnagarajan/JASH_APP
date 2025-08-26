@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, MenuItem, Order, OrderItem
+from .models import CustomUser, MenuItem, Order, OrderItem, ShiftTokenAllocation, TokenDistribution
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
@@ -28,3 +28,18 @@ class OrderAdmin(admin.ModelAdmin):
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ['order', 'menu_item', 'quantity', 'tokens_per_item']
+
+
+@admin.register(ShiftTokenAllocation)
+class ShiftTokenAllocationAdmin(admin.ModelAdmin):
+    list_display = ['shift', 'tokens_per_user', 'allocation_month']
+    list_filter = ['shift', 'allocation_month']
+    search_fields = []
+
+
+@admin.register(TokenDistribution)
+class TokenDistributionAdmin(admin.ModelAdmin):
+    list_display = ['user', 'tokens_allocated', 'allocation_month']
+    list_filter = ['allocation_month']
+    search_fields = ['user__username']
+

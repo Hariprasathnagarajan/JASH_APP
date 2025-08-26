@@ -1,89 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
-import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const ProtectedRoute = ({ 
-  children, 
-  allowedRoles = [],
-  showLoading = true,
-  redirectTo = null,
-  customUnauthorized = null
-}) => {
-  const location = useLocation();
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading, isAuthenticated } = useAuth();
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
+  const location = useLocation();
 
-  useEffect(() => {
-    const checkAuthorization = async () => {
-      try {
-        // If no user is authenticated, no need to check further
-        if (!isAuthenticated) {
-          setIsAuthorized(false);
-          return;
-        }
-
-        // If no specific roles are required, allow access
-        if (allowedRoles.length === 0) {
-          setIsAuthorized(true);
-          return;
-        }
-
-        // Check if user has one of the allowed roles
-        const hasRequiredRole = allowedRoles.some(role => user.role === role);
-        
-        if (!hasRequiredRole) {
-          toast.error('You do not have permission to access this page');
-        }
-        
-        setIsAuthorized(hasRequiredRole);
-      } catch (error) {
-        console.error('Authorization check failed:', error);
-        toast.error('An error occurred while checking permissions');
-        setIsAuthorized(false);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-
-    checkAuthorization();
-  }, [isAuthenticated, user, allowedRoles]);
-
-  // Show loading state if needed
-  if (loading || isChecking) {
-    if (!showLoading) return null;
-    
+  // While checking authentication, show a loading spinner.
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
-        <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
-        <p className="text-gray-600">Checking permissions...</p>
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
   }
 
-  // Redirect to login if not authenticated
+  // If not authenticated, redirect to the login page.
   if (!isAuthenticated) {
-    // Store the attempted URL for redirecting after login
-    const redirectPath = location.pathname + location.search;
-    return <Navigate to="/login" state={{ from: redirectPath }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Handle unauthorized access
+  // Check if the user has the required role.
+  const isAuthorized = user && allowedRoles.length > 0 ? allowedRoles.includes(user.role) : true;
+
+  // If not authorized, redirect to the unauthorized page.
   if (!isAuthorized) {
-    // Use custom unauthorized component if provided
-    if (customUnauthorized) return customUnauthorized;
-    
-    // Redirect to specified path or unauthorized page
-    return <Navigate to={redirectTo || "/unauthorized"} replace />;
+    return <Navigate to="/unauthorized" replace />;
   }
 
-  // Render children if authorized
-  if (typeof children === 'function') {
-    return children({ user, isAuthenticated, isAuthorized });
-  }
+  // If authenticated and authorized, render the child components.
   return children;
 };
 

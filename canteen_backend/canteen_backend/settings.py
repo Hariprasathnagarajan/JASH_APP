@@ -36,21 +36,47 @@ ROOT_URLCONF = 'canteen_backend.urls'
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',  # Default React port
+    'http://localhost:3000',
     'http://127.0.0.1:3000',
 ]
 
-CORS_ALLOW_CREDENTIALS = True
+# Cookie settings
+SESSION_COOKIE_NAME = 'sessionid'
+SESSION_COOKIE_AGE = 1209600  # 2 weeks, in seconds
+SESSION_COOKIE_DOMAIN = None  # Set to your domain in production
+SESSION_COOKIE_PATH = '/'
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'  # Can be 'Lax', 'Strict', or 'None'
 
 # CSRF settings
+CSRF_COOKIE_NAME = 'csrftoken'
+CSRF_COOKIE_AGE = 31449600  # 1 year
+CSRF_COOKIE_DOMAIN = None  # Set to your domain in production
+CSRF_COOKIE_PATH = '/'
+CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read the CSRF token
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_USE_SESSIONS = False
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
 ]
 
-CSRF_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_HTTPONLY = False  # Let JavaScript read the CSRF token
+# CORS settings
+CORS_ALLOW_CREDENTIALS = True
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 CSRF_USE_SESSIONS = False
 
 # Session settings
@@ -93,24 +119,7 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS & CSRF
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-CORS_ALLOW_CREDENTIALS = True
-
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-]
-
-# Cookie settings for dev (non-HTTPS)
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
-SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_HTTPONLY = False  # allow frontend JS to read CSRF token if needed
+# Additional CORS & CSRF settings (duplicates removed above)
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'

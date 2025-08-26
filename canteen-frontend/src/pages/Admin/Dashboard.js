@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Utensils, Loader2, Clock, UserCheck, Calendar, Users as UsersIcon, User } from 'lucide-react';
+import { Users, Utensils, UserCheck, User, Loader2, Users as UsersIcon } from 'lucide-react';
 import { adminAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -46,57 +47,43 @@ const AdminDashboard = () => {
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('[Dashboard] Fetching dashboard stats...');
       
-      console.log('Fetching dashboard stats from:', `${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/admin/dashboard-stats/`);
+      // Add a small delay to show loading state
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      const statsRes = await adminAPI.getDashboardStats().catch(err => {
-        console.error('Detailed error info:', {
-          message: err.message,
-          response: err.response ? {
-            status: err.response.status,
-            statusText: err.response.statusText,
-            data: err.response.data
-          } : 'No response',
-          config: {
-            url: err.config?.url,
-            method: err.config?.method,
-            headers: err.config?.headers
-          }
-        });
+      const response = await adminAPI.getDashboardStats().catch(err => {
+        console.error('Error in getDashboardStats:', err);
         throw new Error(`Failed to load dashboard statistics: ${err.message}`);
       });
       
-      console.log('Dashboard stats response:', statsRes);
+      if (!response || !response.data) {
+        throw new Error('Invalid response from server');
+      }
+      
+      console.log('[Dashboard] API Response:', response);
+      const statsRes = response.data; // Extract data from axios response
+      console.log('Stats Response Data:', JSON.stringify(statsRes, null, 2));
 
-      // Process shift data - handle both object and array responses
-      const processShiftData = (data) => {
-        const shifts = { day: 0, mid: 0, night: 0 };
-        let total = 0;
+      // Process shift data from the API response
+      const processShiftData = (shiftData) => {
+        if (!shiftData) return { day: 0, mid: 0, night: 0, total: 0 };
         
-        if (data) {
-          // Handle both array and object responses
-          if (Array.isArray(data)) {
-            data.forEach(item => {
-              if (item.work_shift) {
-                shifts[item.work_shift] = item.count || 0;
-                total += item.count || 0;
-              }
-            });
-          } else if (typeof data === 'object') {
-            Object.entries(data).forEach(([shift, count]) => {
-              shifts[shift] = count || 0;
-              total += count || 0;
-            });
-          }
-        }
-        
-        return { ...shifts, total };
+        const total = Object.values(shiftData).reduce((sum, count) => sum + (parseInt(count) || 0), 0);
+        return {
+          day: shiftData.day || 0,
+          mid: shiftData.mid || 0,
+          night: shiftData.night || 0,
+          total: total
+        };
       };
       
       // Get shift data from response
       const shiftData = statsRes.shiftData || {};
-      const employeeShifts = processShiftData(shiftData.employees || []);
-      const guestShifts = processShiftData(shiftData.guests || []);
+      const employeeShifts = processShiftData(shiftData.employees);
+      const guestShifts = processShiftData(shiftData.guests);
+      
+      console.log('Processed shifts:', { employeeShifts, guestShifts });
       
       // Update shift data state
       setShiftData({
@@ -104,32 +91,32 @@ const AdminDashboard = () => {
         guests: guestShifts
       });
 
-      // Update stats with all data
+      // Update stats with the API data
       setStats([
         { 
           name: 'Total Staff', 
-          value: statsRes.totalStaff?.toString() || '0', 
+          value: statsRes.totalStaff?.toString() || '0',
           icon: UserCheck, 
           change: '0', 
-          changeType: 'neutral'
+          changeType: 'neutral' 
         },
         { 
           name: 'Menu Items', 
-          value: statsRes.totalMenuItems?.toString() || '0', 
+          value: statsRes.totalMenuItems?.toString() || '0',
           icon: Utensils, 
-          change: '0', 
-          changeType: 'neutral'
+          change: statsRes.newItemsThisWeek?.toString() || '0', 
+          changeType: 'increase' 
         },
         { 
           name: 'Total Employees', 
-          value: employeeShifts.total.toString() || '0',
+          value: (statsRes.totalUsers - (statsRes.totalStaff || 0))?.toString() || '0',
           icon: Users, 
           change: '0', 
-          changeType: 'neutral'
+          changeType: 'neutral' 
         },
         { 
           name: 'Total Guests', 
-          value: guestShifts.total.toString() || '0',
+          value: statsRes.totalGuests?.toString() || '0',
           icon: User, 
           change: '0', 
           changeType: 'neutral'

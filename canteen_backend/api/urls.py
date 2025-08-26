@@ -6,6 +6,8 @@ router = DefaultRouter()
 router.register(r'admin/users', views.AdminUserViewSet, basename='admin-users')
 router.register(r'staff/menu', views.StaffMenuViewSet, basename='staff-menu')
 router.register(r'staff/orders', views.StaffOrderViewSet, basename='staff-orders')
+router.register(r'admin/shift-allocations', views.ShiftTokenAllocationViewSet, basename='shift-allocations')
+router.register(r'admin/token-distributions', views.TokenDistributionViewSet, basename='token-distributions')
 
 
 urlpatterns = [
@@ -16,6 +18,7 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('profile/', views.profile_view, name='profile'),
+    path('update_password/', views.update_password_view, name='update_password'),
 
     # Admin endpoints
     path('admin/dashboard/stats/', views.get_dashboard_stats, name='dashboard_stats'),

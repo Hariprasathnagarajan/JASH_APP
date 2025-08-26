@@ -1,8 +1,48 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authAPI, fetchCSRFToken } from '../utils/api';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authAPI, fetchCSRFToken, ensureCSRFToken } from '../utils/api';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+
+// Helper to clear auth data
+const clearAuthData = () => {
+  // Clear all cookies by setting them to expire in the past
+  const cookies = document.cookie.split(';');
+  cookies.forEach(cookie => {
+    const [name] = cookie.split('=').map(c => c.trim());
+    if (name) {
+      // Clear cookie by setting it to expire in the past
+      document.cookie = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+      // Also clear for subdomains if applicable
+      document.cookie = `${name}=; Path=/; Domain=${window.location.hostname}; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+      document.cookie = `${name}=; Path=/; Domain=.${window.location.hostname}; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+    }
+  });
+  
+  // Clear local storage and session storage
+  localStorage.clear();
+  sessionStorage.clear();
+  
+  // Clear indexedDB if used
+  if (window.indexedDB) {
+    window.indexedDB.databases().then(databases => {
+      databases.forEach(db => {
+        if (db.name) {
+          window.indexedDB.deleteDatabase(db.name);
+        }
+      });
+    }).catch(console.error);
+  }
+  
+  // Clear any service worker caches
+  if ('caches' in window) {
+    caches.keys().then(cacheNames => {
+      cacheNames.forEach(cacheName => {
+        caches.delete(cacheName);
+      });
+    }).catch(console.error);
+  }
+};
 
 const AuthContext = createContext();
 
@@ -29,41 +69,64 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       
       // First ensure we have a CSRF token
-      await fetchCSRFToken();
+      await ensureCSRFToken();
       
       // Then check if we have a valid session
-      const response = await authAPI.getProfile();
+      const response = await authAPI.getProfile().catch(err => {
+        // Clear auth data if we get a 401
+        if (err.response?.status === 401) {
+          clearAuthData();
+        }
+        throw err;
+      });
+      
       const userData = response.data;
       
-      // If user is admin or staff, don't use localStorage
-      if (userData.role === 'admin' || userData.role === 'staff') {
-        setUser(userData);
-        setIsAuthenticated(true);
-        return userData;
-      }
+      // Update state with user data
+      setUser(userData);
+      setIsAuthenticated(true);
       
-      // For other roles, check localStorage
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-      } else {
-        setUser(userData);
-        setIsAuthenticated(true);
-      }
+      // Store minimal user data in localStorage for session persistence
+      const userToStore = {
+        id: userData.id,
+        username: userData.username,
+        email: userData.email,
+        role: userData.role,
+        name: userData.name,
+        shift: userData.shift,
+        tokens_remaining: userData.tokens_remaining
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userToStore));
       
       return userData;
     } catch (error) {
       console.error('Auth check failed:', error);
+      
+      // Try to get user from localStorage as fallback for offline mode
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          // Only use stored user if we're not getting auth errors
+          if (error.response?.status !== 401) {
+            setUser(parsedUser);
+            setIsAuthenticated(true);
+            return parsedUser;
+          }
+        } catch (parseError) {
+          console.error('Failed to parse stored user:', parseError);
+          clearAuthData();
+        }
+      }
+      
+      // Clear auth state
       setUser(null);
       setIsAuthenticated(false);
       
-      // Clear any invalid tokens
-      if (error.response && error.response.status === 401) {
-        // Clear any invalid session data
-        document.cookie = 'sessionid=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        document.cookie = 'csrftoken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      // Clear any invalid tokens on auth errors
+      if (error.response?.status === 401) {
+        clearAuthData();
       }
       
       return null;
@@ -72,7 +135,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Check auth status when location changes
+  // Check auth status on initial load and when location changes
   useEffect(() => {
     if (location.pathname !== '/login') {
       checkAuth();
@@ -81,49 +144,111 @@ export const AuthProvider = ({ children }) => {
     }
   }, [location, checkAuth]);
 
+  // Initial auth check on app load
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
   const login = async (credentials) => {
     try {
       setLoading(true);
       setError(null);
       
-      // Ensure we have a CSRF token before login
-      await fetchCSRFToken();
+      // Ensure we have a fresh CSRF token
+      await ensureCSRFToken();
       
-      const response = await authAPI.login(credentials);
-      const userData = response.data.user || response.data;
+      // Make the login request
+      await authAPI.login(credentials);
+      
+      // Get the user profile to update auth state
+      const userData = await checkAuth();
       
       // Update auth state
       setUser(userData);
       setIsAuthenticated(true);
       
-      // Only store user data in localStorage for non-admin and non-staff users
-      if (userData.role !== 'admin' && userData.role !== 'staff') {
-        localStorage.setItem('user', JSON.stringify({
-          id: userData.id,
-          username: userData.username,
-          email: userData.email,
-          role: userData.role,
-          name: userData.name
-        }));
-      }
+      // Store user data in localStorage for session persistence
+      localStorage.setItem('user', JSON.stringify({
+        id: userData.id,
+        username: userData.username,
+        email: userData.email,
+        role: userData.role,
+        name: userData.name
+      }));
       
-      setLoading(false);
+      // Show success message
+      toast.success(`Welcome back, ${userData.name || userData.username}!`);
+      
+      // Redirect based on role
+      const redirectPath = location.state?.from?.pathname || 
+        (userData.role === 'admin' ? '/admin/dashboard' : 
+         userData.role === 'staff' ? '/staff/orders' : 
+         userData.role === 'employee' ? '/employee/menu' : '/guest/menu');
+      
+      navigate(redirectPath, { replace: true });
+      
       return { success: true, user: userData };
     } catch (error) {
-      console.error('Login error:', error);
-      const message = error.response?.data?.message || error.message || 'Login failed. Please try again.';
-      setError(message);
+      console.error('Login failed:', error);
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Login failed. Please check your credentials.';
+      setError(errorMessage);
       setUser(null);
       setIsAuthenticated(false);
-      setLoading(false);
+      toast.error(errorMessage);
       return { 
         success: false, 
-        error: message
+        error: errorMessage
       };
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
+    try {
+      setLoading(true);
+      
+      // Ensure we have a CSRF token before making the logout request
+      try {
+        await ensureCSRFToken();
+        
+        // Make the logout request with credentials
+        await authAPI.logout(null, {
+          withCredentials: true,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+          }
+        });
+      } catch (error) {
+        console.error('Logout API error (proceeding anyway):', error);
+      } finally {
+        // Always clear auth data and state, even if the API call fails
+        clearAuthData();
+        
+        // Reset state
+        setUser(null);
+        setIsAuthenticated(false);
+        setError(null);
+        
+        // Clear any pending requests or timers
+        if (window.authRefreshTimer) {
+          clearTimeout(window.authRefreshTimer);
+          delete window.authRefreshTimer;
+        }
+        
+        // Redirect to login with a small delay to ensure state is cleared
+        setTimeout(() => {
+          navigate('/login', { replace: true });
+          toast.success('You have been logged out successfully.');
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('An error occurred during logout.');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
     try {
       setLoading(true);
       
@@ -160,27 +285,20 @@ export const AuthProvider = ({ children }) => {
 
   // User and password update functionality can be added here when needed
 
-  // Check if user has any of the required roles
-  const hasRole = (requiredRoles) => {
-    if (!user || !user.role) return false;
-    if (!Array.isArray(requiredRoles)) requiredRoles = [requiredRoles];
-    return requiredRoles.includes(user.role);
-  };
-
-  const value = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = {
     user,
+    isAuthenticated,
     loading,
     error,
-    isAuthenticated,
     login,
     logout,
-    checkAuth,
-    hasRole,
+    checkAuth
   };
 
   return (
-    <AuthContext.Provider value={value}>
-      {children}
+    <AuthContext.Provider value={contextValue}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

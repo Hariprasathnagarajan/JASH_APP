@@ -1,5 +1,5 @@
 // components/PasswordResetModal.js
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Lock, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 

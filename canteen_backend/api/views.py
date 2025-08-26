@@ -1,5 +1,5 @@
-from datetime import timedelta
-from django.db.models import Q, Count, Sum, F
+from datetime import timedelta, date
+from django.db.models import Q, Count, Sum, F, IntegerField, ExpressionWrapper
 from django.utils import timezone
 from django.contrib.auth import login, logout
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -8,10 +8,10 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from .permissions import IsAdmin, IsStaffOrAdmin, IsEmployee, IsGuest
-from .models import CustomUser, MenuItem, Order
+from .models import CustomUser, MenuItem, Order, ShiftTokenAllocation, TokenDistribution
 from .serializers import (
     CustomUserSerializer, CustomUserCreateSerializer, LoginSerializer,
-    MenuItemSerializer, OrderSerializer
+    MenuItemSerializer, OrderSerializer, ShiftTokenAllocationSerializer, TokenDistributionSerializer
 )
 
 
@@ -20,35 +20,67 @@ from .serializers import (
 @ensure_csrf_cookie
 @permission_classes([AllowAny])
 def csrf_token_view(request):
-    response = Response({'message': 'CSRF cookie set'})
-    response['X-CSRFToken'] = request.META.get('CSRF_COOKIE', '')
+    # Get the CSRF token from the request
+    csrf_token = request.META.get('CSRF_COOKIE', '')
+    
+    # Create the response
+    response = Response({
+        'message': 'CSRF cookie set',
+        'csrftoken': csrf_token
+    })
+    
+    # Set CORS headers
+    origin = request.META.get('HTTP_ORIGIN')
+    if origin in settings.CORS_ALLOWED_ORIGINS:
+        response['Access-Control-Allow-Origin'] = origin
+        response['Access-Control-Allow-Credentials'] = 'true'
+        response['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'X-CSRFToken, Content-Type, X-Requested-With, Authorization'
+        response['Access-Control-Expose-Headers'] = 'X-CSRFToken'
+    
+    # Set the CSRF cookie if it doesn't exist
+    if not csrf_token:
+        response.set_cookie(
+            'csrftoken',
+            request.META.get('CSRF_COOKIE'),
+            max_age=60 * 60 * 24 * 7 * 52,  # 1 year
+            httponly=False,
+            samesite='Lax',
+            secure=settings.CSRF_COOKIE_SECURE
+        )
+    
     return response
 
 
 # Login view
-@api_view(['POST'])
+@api_view(['POST', 'OPTIONS'])
 @permission_classes([AllowAny])
 @ensure_csrf_cookie
 def login_view(request):
+    if request.method == 'OPTIONS':
+        response = Response()
+        response['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
+        response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'X-CSRFToken, Content-Type, X-Requested-With'
+        response['Access-Control-Allow-Credentials'] = 'true'
+        return response
+        
     serializer = LoginSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
     user = serializer.validated_data['user']
     login(request, user)
     
-    # Get or create a new session
-    if not request.session.session_key:
-        request.session.create()
-    
-    # Set session cookie attributes
-    request.session.modified = True
-    
-    # Serialize user data
-    user_serializer = CustomUserSerializer(user)
+    # Set session to expire when browser is closed
+    if not request.data.get('remember_me'):
+        request.session.set_expiry(0)
     
     response = Response({
-        'message': 'Login successful', 
-        'user': user_serializer.data,
-        'sessionid': request.session.session_key
+        'id': user.id,
+        'email': user.email,
+        'name': user.get_full_name(),
+        'role': user.role,
+        'is_staff': user.is_staff,
+        'is_superuser': user.is_superuser,
     })
     
     # Set session cookie
@@ -64,29 +96,76 @@ def login_view(request):
 
 
 # Logout view
-@api_view(['POST'])
+@api_view(['POST', 'OPTIONS'])
 @permission_classes([IsAuthenticated])
+@ensure_csrf_cookie
 def logout_view(request):
-    # Get session key before logging out
-    session_key = request.session.session_key
+    # Handle OPTIONS preflight request
+    if request.method == 'OPTIONS':
+        response = Response(status=200)
+    else:
+        # Get session key before logging out
+        session_key = request.session.session_key
+        
+        # Logout the user
+        logout(request)
+        
+        # Delete the session from the database
+        if session_key:
+            from django.contrib.sessions.models import Session
+            try:
+                Session.objects.get(session_key=session_key).delete()
+            except (Session.DoesNotExist, AttributeError):
+                pass
+        
+        # Create response
+        response = Response({'message': 'Logout successful'}, status=200)
     
-    # Logout the user
-    logout(request)
+    # Get the origin from the request
+    origin = request.META.get('HTTP_ORIGIN')
     
-    # Delete the session from the database
-    if session_key:
-        from django.contrib.sessions.models import Session
-        try:
-            Session.objects.get(session_key=session_key).delete()
-        except Session.DoesNotExist:
-            pass
+    # Set CORS headers if the origin is allowed
+    if origin in settings.CORS_ALLOWED_ORIGINS:
+        response['Access-Control-Allow-Origin'] = origin
+        response['Access-Control-Allow-Credentials'] = 'true'
+        response['Access-Control-Allow-Methods'] = 'POST, OPTIONS, GET, PUT, PATCH, DELETE, HEAD'
+        response['Access-Control-Allow-Headers'] = 'X-CSRFToken, Content-Type, X-Requested-With, Authorization, Accept, Accept-Encoding, Accept-Language, Cache-Control, Connection, Host, Pragma, Referer, User-Agent'
+        response['Access-Control-Expose-Headers'] = 'X-CSRFToken, Content-Type, Content-Length, Content-Range, Content-Disposition, Authorization'
+        response['Access-Control-Max-Age'] = '86400'  # 24 hours
     
-    # Create response
-    response = Response({'message': 'Logout successful'})
+    # Always set these headers for the response
+    response['Vary'] = 'Origin, Cookie'
+    response['Content-Type'] = 'application/json'
     
     # Delete the session cookie
-    response.delete_cookie('sessionid')
-    response.delete_cookie('csrftoken')
+    response.delete_cookie(
+        'sessionid',
+        path='/',
+        domain=settings.SESSION_COOKIE_DOMAIN or None,
+        samesite=settings.SESSION_COOKIE_SAMESITE,
+        secure=settings.SESSION_COOKIE_SECURE,
+    )
+    
+    # Set an expired CSRF cookie to clear it
+    response.set_cookie(
+        'csrftoken',
+        '',
+        max_age=0,
+        path='/',
+        domain=settings.CSRF_COOKIE_DOMAIN or None,
+        secure=settings.CSRF_COOKIE_SECURE,
+        httponly=False,
+        samesite=settings.CSRF_COOKIE_SAMESITE
+    )
+    
+    # Also clear any other auth-related cookies
+    response.delete_cookie(
+        'auth_token',
+        path='/',
+        domain=settings.SESSION_COOKIE_DOMAIN or None,
+        samesite=settings.SESSION_COOKIE_SAMESITE,
+        secure=settings.SESSION_COOKIE_SECURE,
+    )
     
     return response
 
@@ -114,14 +193,8 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # Only create tokens for non-admin and non-staff users
-        if user.role not in ['admin', 'staff']:
-            MonthlyToken.objects.create(
-                user=user,
-                count=0,
-                month=timezone.now().month,
-                year=timezone.now().year
-            )
+        # Tokens are managed through the monthly_tokens field in CustomUser model
+        # No need to create separate MonthlyToken objects
             
         output_serializer = CustomUserSerializer(user)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
@@ -201,6 +274,38 @@ class StaffOrderViewSet(viewsets.ModelViewSet):
         return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
 
 
+# Admin: Shift token allocations
+class ShiftTokenAllocationViewSet(viewsets.ModelViewSet):
+    queryset = ShiftTokenAllocation.objects.all().order_by('-allocation_month')
+    serializer_class = ShiftTokenAllocationSerializer
+    permission_classes = [IsAdmin]
+
+
+# Admin: Per-user token distributions
+class TokenDistributionViewSet(viewsets.ModelViewSet):
+    queryset = TokenDistribution.objects.select_related('user').all().order_by('-allocation_month')
+    serializer_class = TokenDistributionSerializer
+    permission_classes = [IsAdmin]
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user_id = self.request.query_params.get('user')
+        month = self.request.query_params.get('month')  # format YYYY-MM or YYYY-MM-01
+        if user_id:
+            qs = qs.filter(user_id=user_id)
+        if month:
+            try:
+                # Accept YYYY-MM or full date; normalize to first of month
+                from datetime import datetime
+                if len(month) == 7:
+                    month = f"{month}-01"
+                dt = datetime.strptime(month, "%Y-%m-%d").date().replace(day=1)
+                qs = qs.filter(allocation_month=dt)
+            except Exception:
+                pass
+        return qs
+
+
 # Employee: View menu
 @api_view(['GET'])
 @permission_classes([IsEmployee])
@@ -228,17 +333,11 @@ def employee_place_order(request):
                             status=status.HTTP_400_BAD_REQUEST)
 
     user = request.user
-    current_month = timezone.now().month
-    current_year = timezone.now().year
-
-    try:
-        token_obj = user.monthly_tokens.get(month=current_month, year=current_year)
-    except MonthlyToken.DoesNotExist:
-        return Response({'error': 'No tokens available for this month'}, status=status.HTTP_400_BAD_REQUEST)
-
-    if token_obj.count < total_tokens_needed:
+    
+    # Check if user has enough tokens
+    if user.current_tokens() < total_tokens_needed:
         return Response(
-            {'error': f'Insufficient tokens. Required: {total_tokens_needed}, Available: {token_obj.count}'},
+            {'error': f'Insufficient tokens. Required: {total_tokens_needed}, Available: {user.current_tokens()}'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -246,17 +345,18 @@ def employee_place_order(request):
     serializer.is_valid(raise_exception=True)
     order = serializer.save()
 
-    token_obj.count -= total_tokens_needed
-    token_obj.save()
+    # Deduct tokens from user
+    user.monthly_tokens -= total_tokens_needed
+    user.save()
 
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-# ✅ Employee: View orders
+# Employee: View orders
 @api_view(['GET'])
 @permission_classes([IsEmployee])
 def employee_orders(request):
-    orders = Order.objects.filter(employee=request.user).prefetch_related('order_items__menu_item')
+    orders = Order.objects.filter(user=request.user).prefetch_related('order_items__menu_item')
     today = timezone.now().date()
 
     today_orders = orders.filter(created_at__date=today)
@@ -284,7 +384,7 @@ def guest_menu(request):
 @api_view(['GET'])
 @permission_classes([IsGuest])
 def guest_orders(request):
-    orders = Order.objects.filter(guest=request.user).prefetch_related('order_items__menu_item')
+    orders = Order.objects.filter(user=request.user).prefetch_related('order_items__menu_item')
     today = timezone.now().date()
 
     today_orders = orders.filter(created_at__date=today)
@@ -317,17 +417,11 @@ def guest_place_order(request):
                             status=status.HTTP_400_BAD_REQUEST)
 
     user = request.user
-    current_month = timezone.now().month
-    current_year = timezone.now().year
-
-    try:
-        token_obj = user.monthly_tokens.get(month=current_month, year=current_year)
-    except MonthlyToken.DoesNotExist:
-        return Response({'error': 'No tokens available for this month'}, status=status.HTTP_400_BAD_REQUEST)
-
-    if token_obj.count < total_tokens_needed:
+    
+    # Check if user has enough tokens
+    if user.current_tokens() < total_tokens_needed:
         return Response(
-            {'error': f'Insufficient tokens. Required: {total_tokens_needed}, Available: {token_obj.count}'},
+            {'error': f'Insufficient tokens. Required: {total_tokens_needed}, Available: {user.current_tokens()}'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -335,8 +429,9 @@ def guest_place_order(request):
     serializer.is_valid(raise_exception=True)
     order = serializer.save()
 
-    token_obj.count -= total_tokens_needed
-    token_obj.save()
+    # Deduct tokens from user
+    user.monthly_tokens -= total_tokens_needed
+    user.save()
 
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -367,9 +462,10 @@ def assign_tokens(request):
         work_shift=shift,
         role__in=['employee', 'guest']
     )
-    
+
+    # Bulk update tokens for users in the shift
     updated = users.update(monthly_tokens=shift_limits[shift])
-    
+
     return Response({
         'status': 'success',
         'updated': updated,
@@ -411,11 +507,8 @@ def get_token_summary(request):
 def get_dashboard_stats(request):
     """Get statistics for the admin dashboard"""
     try:
-        print("Starting dashboard stats calculation...")
-        
         # Total users count
         total_users = CustomUser.objects.count()
-        print(f"Total users: {total_users}")
         
         # User growth (percentage change from last month)
         last_month = timezone.now() - timedelta(days=30)
@@ -429,7 +522,6 @@ def get_dashboard_stats(request):
         
         # Menu items count
         total_menu_items = MenuItem.objects.count()
-        print(f"Total menu items: {total_menu_items}")
         
         # New items this week
         new_items_this_week = MenuItem.objects.filter(
@@ -438,36 +530,37 @@ def get_dashboard_stats(request):
         
         # Today's revenue
         today = timezone.now().date()
-        print(f"Calculating revenue for {today}")
         
         try:
-            todays_orders = Order.objects.filter(
-                created_at__date=today,
-                status='completed'
+            value_expr = ExpressionWrapper(
+                F('order_items__tokens_per_item') * F('order_items__quantity'),
+                output_field=IntegerField(),
             )
-            todays_revenue = todays_orders.aggregate(total=Sum('total_amount'))['total'] or 0
-            print(f"Today's revenue: {todays_revenue}")
-            
+
+            todays_orders = (
+                Order.objects.filter(created_at__date=today, status='completed')
+                .annotate(total_value=value_expr)
+            )
+            todays_revenue = todays_orders.aggregate(total=Sum('total_value'))['total'] or 0
+
             # Revenue change from yesterday
             yesterday = today - timedelta(days=1)
-            yesterdays_orders = Order.objects.filter(
-                created_at__date=yesterday,
-                status='completed'
+            yesterdays_orders = (
+                Order.objects.filter(created_at__date=yesterday, status='completed')
+                .annotate(total_value=value_expr)
             )
-            yesterdays_revenue = yesterdays_orders.aggregate(total=Sum('total_amount'))['total'] or 0
-            
+            yesterdays_revenue = yesterdays_orders.aggregate(total=Sum('total_value'))['total'] or 0
+
             revenue_change = 0
             if yesterdays_revenue > 0:
                 revenue_change = ((todays_revenue - yesterdays_revenue) / yesterdays_revenue) * 100
-        except Exception as e:
-            print(f"Error calculating revenue: {str(e)}")
+        except Exception:
             todays_revenue = 0
             revenue_change = 0
         
         # Pending orders
         try:
             pending_orders = Order.objects.filter(status='pending').count()
-            print(f"Pending orders: {pending_orders}")
             
             # Pending change from yesterday
             yesterday = timezone.now().date() - timedelta(days=1)
@@ -477,7 +570,6 @@ def get_dashboard_stats(request):
             ).count()
             pending_change = pending_orders - yesterdays_pending
         except Exception as e:
-            print(f"Error calculating pending orders: {str(e)}")
             pending_orders = 0
             pending_change = 0
         
@@ -486,20 +578,18 @@ def get_dashboard_stats(request):
             shift_employees = list(CustomUser.objects.filter(role='employee').values('work_shift').annotate(
                 count=Count('id')
             ))
-            print(f"Shift employees: {shift_employees}")
             
             # Get shift-wise guest counts
             shift_guests = list(CustomUser.objects.filter(role='guest').values('work_shift').annotate(
                 count=Count('id')
             ))
-            print(f"Shift guests: {shift_guests}")
         except Exception as e:
-            print(f"Error getting shift data: {str(e)}")
             shift_employees = []
             shift_guests = []
         
-        # Get total staff count
+        # Get total staff and guest counts
         total_staff = CustomUser.objects.filter(role='staff').count()
+        total_guests = CustomUser.objects.filter(role='guest').count()
         
         # Format shift data with default values
         shift_data = {
@@ -525,16 +615,13 @@ def get_dashboard_stats(request):
             'pendingChange': pending_change,
             'shiftData': shift_data,
             'totalStaff': total_staff,
+            'totalGuests': total_guests,
             'status': 'success'
         }
         
-        print("Dashboard stats calculated successfully")
         return Response(response_data)
         
     except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"Error in get_dashboard_stats: {str(e)}\n{error_trace}")
         return Response(
             {'error': 'Failed to load dashboard statistics', 'details': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -546,13 +633,13 @@ def get_dashboard_stats(request):
 def get_recent_orders(request):
     """Get recent orders for the admin dashboard"""
     limit = int(request.query_params.get('limit', 5))
-    orders = Order.objects.select_related('employee', 'guest')\
+    orders = Order.objects.select_related('user')\
                          .prefetch_related('order_items__menu_item')\
                          .order_by('-created_at')[:limit]
     
     data = []
     for order in orders:
-        user_name = order.employee.username if order.employee else order.guest.username
+        user_name = order.user.username
         items = [f"{item.quantity}x {item.menu_item.name}" for item in order.order_items.all()]
         
         data.append({
@@ -584,20 +671,23 @@ def get_revenue_data(request):
         start_date = end_date - timedelta(days=364)
         date_range = [start_date + timedelta(days=x*30) for x in range(12)]
     
-    # Get completed orders in the date range
-    orders = Order.objects.filter(
-        created_at__date__range=[start_date, end_date],
-        status='completed'
+    # Get completed orders in the date range and aggregate in DB
+    value_expr = ExpressionWrapper(
+        F('order_items__tokens_per_item') * F('order_items__quantity'),
+        output_field=IntegerField(),
     )
-    
+
+    orders = (
+        Order.objects.filter(
+            created_at__date__range=[start_date, end_date], status='completed'
+        )
+        .annotate(total_value=value_expr)
+        .values('created_at__date')
+        .annotate(amount=Sum('total_value'))
+    )
+
     # Group by date
-    revenue_by_date = {}
-    for order in orders:
-        date = order.created_at.date()
-        if date in revenue_by_date:
-            revenue_by_date[date] += float(order.total_amount)
-        else:
-            revenue_by_date[date] = float(order.total_amount)
+    revenue_by_date = {row['created_at__date']: float(row['amount'] or 0) for row in orders}
     
     # Fill in missing dates with 0
     data = []
@@ -608,3 +698,39 @@ def get_revenue_data(request):
         })
     
     return Response(data)
+
+
+# Update password view
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_password_view(request):
+    """Update user password"""
+    user = request.user
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+    
+    if not old_password or not new_password:
+        return Response(
+            {'error': 'Both old_password and new_password are required'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Check if old password is correct
+    if not user.check_password(old_password):
+        return Response(
+            {'error': 'Current password is incorrect'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Validate new password length
+    if len(new_password) < 6:
+        return Response(
+            {'error': 'New password must be at least 6 characters long'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Update password
+    user.set_password(new_password)
+    user.save()
+    
+    return Response({'message': 'Password updated successfully'})

@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Menu, X, User, BarChart2, Users, CreditCard } from 'lucide-react';
@@ -6,7 +6,7 @@ import LogoutButton from './LogoutButton';
 
 const Navbar = () => {
   const { user, isAuthenticated, loading } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
   // Navigation items based on user role
